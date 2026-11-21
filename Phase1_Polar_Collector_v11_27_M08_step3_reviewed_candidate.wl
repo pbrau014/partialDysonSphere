@@ -7,14 +7,6 @@
      Implementation helpers and runtime state live in Phase1PolarCollector`Private`.
      Load with: Get["Phase1_Polar_Collector_Model_v11_27.wl"];
 
-   Supplied archive reviewed separately:
-     English.zip identifies itself as the WolframDocumentationStub English paclet,
-     version 12.3.0.0, minimum Wolfram Language 12.2. The archive's package examples
-     illustrate BeginPackage/Begin/End/EndPackage, private implementation contexts,
-     assertions, and VerificationTest. Its ExampleData files are import/export fixtures,
-     not polar-collector engineering specifications. No project geometry, material,
-     actuator, operating, or acceptance value is taken from that archive.
-
    Governing two-pole architecture:
      Exactly two physically separate collector systems, one at each pole. They share
      design/material definitions only. Their operating inputs, environment, disturbances,
@@ -28,20 +20,32 @@
      exact natural vector-force/torque equilibrium and its thermal, dynamic, actuator,
      and reduced-order structural constraints.
 
-   Input policy:
-     PoleCount = 2 is the only project-specific populated default. Other project-specific
-     design, material, operating, disturbance, model-form, and acceptance values remain
-     Missing until entered. Published physical constants, SI definitions, standardized
-     PV reference test conditions, fraction domains, and numerical execution conventions
-     are reference/software definitions, not populated collector operating values.
-     Source notes are optional metadata. Their absence never blocks readiness,
-     calculation, validation, cache freshness, or acceptance.
+   Input and synthetic-assumption policy (user-approved for this project and chat):
+     PoleCount = 2 is fixed by the user-confirmed architecture. Design, material, operating,
+     disturbance, model-form and acceptance values may be populated with carefully bounded
+     synthetic engineering assumptions when no suitable mathematical approximation or
+     reference value exists. Search for a defensible equation or approximation first; then
+     use an explicit approved assumption. Check consequences upstream and downstream and
+     keep the two pole systems operationally independent. Synthetic changes to existing
+     properties must remain slight by default. A 10% change is used here as a provisional
+     screening heuristic where a baseline exists, not as a user-specified universal limit;
+     larger changes require a specific physical/model rationale and explicit review. Mark every synthetic value and its basis in the assumption register
+     and beside the corresponding code. These values are not measurements, supplier
+     specifications, material allowables or qualifications. The user specifically approves
+     the Phase 1 assumption that ICARUS actuator capability can be achieved by modest
+     mission-specific reengineering. The present hardware is not mission-qualified. Phase 1
+     may calculate a redesign target but must not claim current hardware already has it.
+     Per-pole station coordinates and SEP fluence remain derived from current geometry and
+     each pole's independent distance. Numerical settings and published constants are
+     separately classified.
 
    Numerical model limits:
      This is a Phase 1 engineering-screening model, not a qualified flight design.
-     Geometry, mass distribution, membrane constitutive response, station-to-membrane
-     load transfer, and attitude restoring are explicit reduced-order model choices.
-     They are not CAD-derived geometry, validated finite-element stress analysis, or
+     Geometry, mass distribution, membrane constitutive response, and station-to-membrane
+     load transfer remain explicit reduced-order model choices. Attitude dynamics include
+     classical rigid-body gravity-gradient torque and a small-angle mode linearization;
+     flexible-body deformation and material damping are not established by that model.
+     The model is not CAD-derived geometry, validated finite-element stress analysis, or
      qualified actuator performance unless replaced by the corresponding engineering models.
 
    Recommended start sequence:
@@ -52,6 +56,8 @@
      Phase1InteractivePanel[];
      Phase1PoleOperatingInputPanel["Pole1"];
      Phase1PoleOperatingInputPanel["Pole2"];
+     Phase1ICARUSRedesignSizing["Pole1"];
+     Phase1ICARUSRedesignSizing["Pole2"];
      (* Enter required values in the shared design/material and separate pole registers. *)
      Phase1InputStatus[];
      Phase1ComputeAll[];
@@ -84,8 +90,12 @@ Phase1GetSharedInputs::usage = "Phase1GetSharedInputs is part of the Phase1Polar
 Phase1GetState::usage = "Phase1GetState is part of the Phase1PolarCollector package API.";
 Phase1ICARUSControlLaw::usage = "Phase1ICARUSControlLaw is part of the Phase1PolarCollector package API.";
 Phase1ICARUSLoadPropagation::usage = "Phase1ICARUSLoadPropagation is part of the Phase1PolarCollector package API.";
+Phase1ICARUSRedesignSizing::usage = "Phase1ICARUSRedesignSizing[pole] derives and tests a conditional mission-specific ICARUS actuator force-capacity target for one independent pole; it is not hardware qualification.";
 Phase1InputRequirements::usage = "Phase1InputRequirements[] reports input categories and required values for the shared design/material register and each pole.";
-Phase1InputStatus::usage = "Phase1InputStatus[] reports missing required values; optional source notes do not affect readiness.";
+Phase1ApprovedAssumptions::usage = "Phase1ApprovedAssumptions[] reports user-approved assumptions, derived assumption-based values, and unresolved qualification items.";
+Phase1MaterialScenarioPresets::usage = "Phase1MaterialScenarioPresets[] reports the approved alternate no-Dyneema film/wiring comparison preset.";
+Phase1TaskInputStatus::usage = "Phase1TaskInputStatus[] reports task-specific input readiness for the selected pole; Phase1TaskInputStatus[task] reports one task; Phase1TaskInputStatus[pole,task] reports one explicit pole/task combination, including whether a supported independent setup task has executed with current inputs.";
+Phase1InputStatus::usage = "Phase1InputStatus[] reports missing required values.";
 Phase1IntegratedSimulation::usage = "Phase1IntegratedSimulation is part of the Phase1PolarCollector package API.";
 Phase1InteractivePanel::usage = "Phase1InteractivePanel is part of the Phase1PolarCollector package API.";
 Phase1JointOptimization::usage = "Phase1JointOptimization is part of the Phase1PolarCollector package API.";
@@ -94,7 +104,6 @@ Phase1LocalRadiationLoads::usage = "Phase1LocalRadiationLoads is part of the Pha
 Phase1LocalSurfaceMesh::usage = "Phase1LocalSurfaceMesh is part of the Phase1PolarCollector package API.";
 Phase1MassBalance::usage = "Phase1MassBalance is part of the Phase1PolarCollector package API.";
 Phase1MissingRequiredInputs::usage = "Phase1MissingRequiredInputs is part of the Phase1PolarCollector package API.";
-Phase1MissingRequiredProvenance::usage = "Compatibility function. Returns {} because optional source notes are not required and are not required for calculation.";
 Phase1Phase2Handoff::usage = "Phase1Phase2Handoff is part of the Phase1PolarCollector package API.";
 Phase1PoleIndependenceAudit::usage = "Phase1PoleIndependenceAudit is part of the Phase1PolarCollector package API.";
 Phase1PoleOperatingInputPanel::usage = "Phase1PoleOperatingInputPanel is part of the Phase1PolarCollector package API.";
@@ -109,9 +118,7 @@ Phase1RunSelfTests::usage = "Phase1RunSelfTests[] runs software-only tests and, 
 Phase1RunSoftwareSelfTests::usage = "Phase1RunSoftwareSelfTests[] runs software-only synthetic tests without requiring project inputs or mutating project state.";
 Phase1SaveState::usage = "Phase1SaveState is part of the Phase1PolarCollector package API.";
 Phase1SelectPole::usage = "Phase1SelectPole is part of the Phase1PolarCollector package API.";
-Phase1SetInputProvenance::usage = "Compatibility API for storing optional descriptive source notes; notes are never required for calculations.";
-Phase1SetInputs::usage = "Phase1SetInputs[values] updates shared design/material and model inputs. Optional source notes may be supplied as a second association; they never gate calculations.";
-Phase1SetPoleOperatingInputProvenance::usage = "Compatibility API for storing optional pole-specific source notes; notes are never required for calculations.";
+Phase1SetInputs::usage = "Phase1SetInputs[values] updates shared design/material and model inputs.";
 Phase1SetPoleOperatingInputs::usage = "Phase1SetPoleOperatingInputs[pole, values] updates only the selected pole operating register. Pole must be \"Pole1\" or \"Pole2\".";
 Phase1SolveExactEquilibrium::usage = "Phase1SolveExactEquilibrium is part of the Phase1PolarCollector package API.";
 Phase1StabilityCriteria::usage = "Phase1StabilityCriteria is part of the Phase1PolarCollector package API.";
@@ -137,40 +144,29 @@ $Phase1CalculationCoreSchemaVersion = "11.9";
 
    IMPORTANT MODEL STATUS:
      This is a Phase 1 engineering-screening model, not a qualified flight design.
-     The only project-specific default is PoleCount = 2, representing the user-confirmed
-     two-pole architecture. No other project-specific design choice or physical/material
-     value, PV target, actuator value, mass allowance, disturbance, initial condition,
-     mission duration or acceptance threshold is defaulted. The PV coverage interval is
-     only the mathematical domain of a fraction; solver settings are Mathematica execution
-     conventions, not collector design values. Widely accepted SI/CODATA/IAU constants and
-     standardized PV reference-test conditions remain available solely as reference values,
-     not as assumed collector design or operating conditions.
+     PoleCount = 2 is the user-confirmed architecture. All populated design/material and
+     pole-specific operating values from the reviewed 142-input register are user-approved
+     assumptions, identified by Phase1ApprovedAssumptions[]. They are not measurements,
+     supplier specifications, material allowables, forecasts or qualifications. The approved
+     reflector solar reflectivity target is 99.9%; the free-standing PV specific-power
+     reference is 730 W/kg. The approved Dyneema treatment reduces its 13 g/m^2 reference
+     areal mass by 20%. Numerical execution settings are identified separately from physical
+     assumptions. Reference constants and standardized PV test conditions remain reference
+     definitions, not collector operating inputs.
      Mathematica calculates all derived values, integrations, solves, optimizations and checks at runtime.
 
-   Provenance references:
-     MIT PV publication and DOI for independently sourced device data: https://doi.org/10.1002/smtd.202200940
-     IAU 2015 Resolution B3 nominal solar conversion constants:
-     https://www.iau.org/static/resolutions/IAU2015_English.pdf
-   NIST CODATA 2022 physical constants:
-     https://physics.nist.gov/cuu/pdf/wall_2022.pdf
-   PV standard test conditions (1000 W/m^2, 25 C, AM1.5G):
-     IEA-PVPS Solar Resource Handbook, 3rd edition, Section 3.3; IEC 60904 series.
-     https://www.iea-pvps.org/wp-content/uploads/2021/06/IEA_PVPS_T16_Solar_Res_Handbook_2021-080621.pdf
-   NASA SRP modelling reference:
-     https://ntrs.nasa.gov/api/citations/20220014814/downloads/NASA%20TP%2020220014814%20final.pdf
-
-   Load with:
      Get["Phase1_Polar_Collector_Model_v11_27.wl"];
-     (* Inspect readiness; calculate only after all required values are entered. *)
+     (* Review readiness, approved assumptions and unresolved qualification items. *)
      Phase1InputStatus[];
      Phase1InputRequirements[];
+     Phase1ApprovedAssumptions[];
+     Phase1MaterialScenarioPresets[];
      Phase1MissingRequiredInputs[];
-     Phase1MissingRequiredProvenance[];
      Phase1InteractivePanel[];
      Phase1PoleOperatingInputPanel["Pole1"];
      Phase1PoleOperatingInputPanel["Pole2"];
      Phase1PoleIndependenceAudit[];
-     (* Enter distinct operating inputs for each pole. Optional notes do not affect readiness. *)
+     (* Review or change assumptions separately in each pole operating register. *)
      Phase1ComputeAll[];
      Phase1Validate[];
      Phase1RunSelfTests[];
@@ -178,13 +174,14 @@ $Phase1CalculationCoreSchemaVersion = "11.9";
      Phase1RunFullAssessment[];
      Phase1RunReport[];
 
-   This v11.27 source implements two operationally independent pole systems. Their design and material inputs are shared; their operating inputs, state, controls, disturbances, dynamics, caches and results are separate. PoleCount = 2 is the only project-specific default.
+   This v11.27 source implements two operationally independent pole systems. Their design and material assumptions are shared; their operating assumptions, state, controls, disturbances, dynamics, caches and results are separate. PoleCount = 2 is fixed by the user-confirmed architecture. User-approved assumptions remain distinguishable from measurements and qualifications. Unknown ICARUS capacity remains Automatic; only per-station demand is calculated.
    ======================================================================== *)
 
 (* ========================================================================
    1. CENTRAL INPUT REGISTER — sole source of model inputs
-   All input values used by calculations are read from $Phase1State["Inputs"].
-   UI changes and optimizer recommendations update this same register.
+   Shared design/material inputs are stored here. Each pole has a separate operating
+   register. Automatic geometry/fluence entries resolve from the approved assumptions
+   when read by calculations; derived values are never written across pole registers.
    ======================================================================== *)
 
 $Phase1DefaultInputs = <|
@@ -202,160 +199,143 @@ $Phase1DefaultInputs = <|
   "CentimetersPerMeter" -> 100.,
   "ProtonMass_kg" -> 1.67262192595*10^-27,
 
-  (* Physical coefficients and numerical controls remain required inputs unless they are
-     published reference constants, standardized reference conditions, pure mathematics,
-     or explicit Mathematica execution conventions. No model coefficient is assumed. *)
-  "CircularMembraneDeflectionCoefficient" -> Missing["UserInputRequired"],
-  "MeshAreaRelativeTolerance" -> Missing["UserInputRequired"],
-  "AccelerationCrossCheckRelativeTolerance" -> Missing["UserInputRequired"],
-  "SolarReferenceConsistencyRelativeTolerance" -> Missing["UserInputRequired"],
-  "ThermalResidualRelativeTolerance" -> Missing["UserInputRequired"],
-  "QuaternionNormalizationTolerance" -> Missing["UserInputRequired"],
-  "OpticalClosureTolerance" -> Missing["UserInputRequired"],
-  "PowerLedgerRelativeTolerance" -> Missing["UserInputRequired"],
-  "ICARUSLoadMapRelativeTolerance" -> Missing["UserInputRequired"],
-  "MeshCoefficientCrossCheckTolerance" -> Missing["UserInputRequired"],
-  "OptimizerGridCrossCheckRelativeTolerance" -> Missing["UserInputRequired"],
+  (* Numerical settings below are user-approved calculation settings, not measured
+     collector properties. Engineering/model values populated below are user-approved
+     assumptions from the 142-input assessment. They are not measurements, qualifications,
+     or guaranteed operating performance. *)
+  "CircularMembraneDeflectionCoefficient" -> 4.0,
+  "MeshAreaRelativeTolerance" -> 1.0*10^-4,
+  "AccelerationCrossCheckRelativeTolerance" -> 1.0*10^-6,
+  "SolarReferenceConsistencyRelativeTolerance" -> 1.0*10^-3,
+  "ThermalResidualRelativeTolerance" -> 1.0*10^-5,
+  "QuaternionNormalizationTolerance" -> 1.0*10^-10,
+  "OpticalClosureTolerance" -> 1.0*10^-12,
+  "PowerLedgerRelativeTolerance" -> 1.0*10^-9,
+  "ICARUSLoadMapRelativeTolerance" -> 1.0*10^-6,
+  "MeshCoefficientCrossCheckTolerance" -> 1.0*10^-3,
+  "OptimizerGridCrossCheckRelativeTolerance" -> 1.0*10^-2,
   "NumericalWorkingPrecision" -> MachinePrecision,
-  "OptimizerMaxIterations" -> Missing["UserInputRequired"],
-  "PVThermalCouplingMaxIterations" -> Missing["UserInputRequired"],
-  "OptimizerGridPointCount" -> Missing["UserInputRequired"],
-  "OptimizerCoverageGridPointCount" -> Missing["UserInputRequired"],
-  "MeshRadialCount" -> Missing["UserInputRequired"],
-  "MeshAzimuthCount" -> Missing["UserInputRequired"],
-  "OptimizerMeshRadialCount" -> Missing["UserInputRequired"],
-  "OptimizerMeshAzimuthCount" -> Missing["UserInputRequired"],
-  "DynamicAccuracyGoal" -> Missing["UserInputRequired"],
-  "DynamicPrecisionGoal" -> Missing["UserInputRequired"],
+  "OptimizerMaxIterations" -> 1000,
+  "PVThermalCouplingMaxIterations" -> 100,
+  "OptimizerGridPointCount" -> 41,
+  "OptimizerCoverageGridPointCount" -> 41,
+  "MeshRadialCount" -> 20,
+  "MeshAzimuthCount" -> 64,
+  "OptimizerMeshRadialCount" -> 10,
+  "OptimizerMeshAzimuthCount" -> 32,
+  "DynamicAccuracyGoal" -> 8,
+  "DynamicPrecisionGoal" -> 8,
   "DynamicMaxSteps" -> Infinity,
-  "DynamicSampleCount" -> Missing["UserInputRequired"],
-  "DynamicLoadPropagationSampleCount" -> Missing["UserInputRequired"],
-  (* The only project-specific default retained is the user-confirmed two-pole architecture. *)
+  "DynamicSampleCount" -> 201,
+  "DynamicLoadPropagationSampleCount" -> 51,
+  (* PoleCount is fixed at the user-confirmed two-system architecture. Other project-specific
+     populated values below are user-approved assumptions, not measured specifications. *)
   "PoleCount" -> 2,
-  "ICARUSStationCount" -> Missing["UserInputRequired"],
-  "ICARUSStationCountScope" -> Missing["UserInputRequired"],
-  "ReflectorSolarReflectivity" -> Missing["UserInputRequired"],
-  "ProjectTargetEfficiency" -> Missing["UserInputRequired"],
+  "ICARUSStationCount" -> 4,
+  "ICARUSStationCountScope" -> "PerPoleAssembly",
+  "ReflectorSolarReflectivity" -> 0.999, (* User-approved 99.9% target assumption; not measured coating performance. *)
+  "ProjectTargetEfficiency" -> 0.20,
   "PVSpecificPowerReferenceIrradiance_W_m2" -> 1000., (* PV standard test irradiance, IEC 60904 series. *)
   "PVReferenceTemperature_K" -> 298.15, (* 25 deg C PV standard test temperature. *)
-  "PVScenarioOptions" -> {"MITSpecificPowerLimited","MITIntegratedFabricSpecificPowerLimited","MITEfficiencyReference","ProjectSpecifiedTargetEfficiency"},
-  "PVLayoutModel" -> Missing["UserInputRequired"],
-  "GeometryProfileModel" -> Missing["UserInputRequired"],
-  "MassDistributionModel" -> Missing["UserInputRequired"],
-  "FlareTemporalProfile" -> Missing["UserInputRequired"],
-  "CMETemporalProfile" -> Missing["UserInputRequired"],
-  "ICARUSLoadTransferModel" -> Missing["UserInputRequired"],
-  "MembraneStructuralModel" -> Missing["UserInputRequired"],
-  "WobbleRestoringModel" -> Missing["UserInputRequired"],
+  "PVScenarioOptions" -> {"PVCellArraySpecificPowerLimited","PVCellArraySpecificPowerLimited","PVCellReferenceEfficiency","ProjectSpecifiedTargetEfficiency"},
+  "PVLayoutModel" -> "UniformSurfaceCoverage",
+  "GeometryProfileModel" -> "SphericalCapSurrogate",
+  "MassDistributionModel" -> "UniformSheetMassWithPerimeterLineMassAndStationPointMasses",
+  "FlareTemporalProfile" -> "GaussianFWHM",
+  "CMETemporalProfile" -> "RectangularPressureEnvelope",
+  "ICARUSLoadTransferModel" -> "GaussianMomentCorrected",
+  "MembraneStructuralModel" -> "TensionedCircularMembrane",
+  "WobbleRestoringModel" -> "NonlinearGravityGradientRigidBody",
   "PVSearchRange" -> {0.,1.},
-  "ReflectionModel" -> Missing["UserInputRequired"],
-  "DeferredEquipmentMass_kg" -> Missing["UserInputRequired"],
-  "OtherInstalledArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "PerimeterHardwareLinearMass_kg_m" -> Missing["UserInputRequired"],
-  "InitialPositionLocal_m" -> Missing["UserInputRequired"],
-  "InitialVelocityLocal_m_s" -> Missing["UserInputRequired"],
-  "InitialVelocityHeliocentric_m_s" -> Missing["UserInputRequired"],
-  "HeliocentricReferenceMotionMode" -> Missing["UserInputRequired"],
-  "InitialAttitudeSmallAngles_rad" -> Missing["UserInputRequired"],
-  "IncidenceAngle_deg" -> Missing["UserInputRequired"],
+  "ReflectionModel" -> "Specular",
+  "DeferredEquipmentMass_kg" -> 0.0,
+  "OtherInstalledArealMass_kg_m2" -> 0.0,
+  "PerimeterHardwareLinearMass_kg_m" -> 0.001,
+  "InitialPositionLocal_m" -> {0.,0.,0.},
+  "InitialVelocityLocal_m_s" -> {0.,0.,0.},
+  "InitialVelocityHeliocentric_m_s" -> {0.,0.,0.},
+  "HeliocentricReferenceMotionMode" -> "StaticHover",
+  "InitialAttitudeSmallAngles_rad" -> {0.,0.,0.},
+  "IncidenceAngle_deg" -> 0.0,
 
-  (* Every other project-specific design/material/operating value is intentionally
-     Missing. Populate via Phase1SetInputs[values, sources] with SI units and an exact source
-     or an explicit project-owner-approved assumption note. *)
-  "Distance_m" -> Missing["UserInputRequired"],
-  "PerPoleProjectedArea_m2" -> Missing["UserInputRequired"],
-  "CapDepthToPlanformRadius" -> Missing["UserInputRequired"],
-  "PVFraction" -> Missing["UserInputRequired"],
-  "ReflectorSolarTransmissivity" -> Missing["UserInputRequired"],
-  "PVSolarReflectivity" -> Missing["UserInputRequired"],
-  "PVSolarTransmissivity" -> Missing["UserInputRequired"],
-  "PVArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "PVIntegratedFabricArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "PVIntegratedMassIncludesStructuralFabric" -> Missing["UserInputRequired"],
-  "PVFreeStandingSpecificPower_W_kg" -> Missing["UserInputRequired"],
-  "PVIntegratedSpecificPower_W_kg" -> Missing["UserInputRequired"],
-  "PrimaryPVScenario" -> Missing["UserInputRequired"],
-  "ReflectorArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "MembraneSubstrateMaterialName" -> Missing["UserInputRequired"],
-  "MembraneSubstrateArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "WiringArealMass_kg_m2" -> Missing["UserInputRequired"],
-  "ICARUSStationMass_kg" -> Missing["UserInputRequired"],
-  "ICARUSStationPositionsLocal_m" -> Missing["UserInputRequired"],
-  "MITEfficiencyReference" -> Missing["UserInputRequired"],
-  "PVIntegratedEfficiencyReference" -> Missing["UserInputRequired"],
-  "PVEfficiencyTemperatureCoefficient_perK" -> Missing["UserInputRequired"],
-  "TransferEfficiency" -> Missing["UserInputRequired"],
-  "ConditioningEfficiency" -> Missing["UserInputRequired"],
-  "ReflectorIRemissivity" -> Missing["UserInputRequired"],
-  "PVIRemissivity" -> Missing["UserInputRequired"],
-  "BothSidesRadiate" -> Missing["UserInputRequired"],
-  "PVTemperatureLimit_K" -> Missing["UserInputRequired"],
-  "ReflectorTemperatureLimit_K" -> Missing["UserInputRequired"],
-  "ICARUSStationForceCapacity_N" -> Missing["UserInputRequired"],
-  "ControllerTranslationKp_perS2" -> Missing["UserInputRequired"],
-  "ControllerTranslationKd_perS" -> Missing["UserInputRequired"],
-  "ControllerAttitudeKp_perS2" -> Missing["UserInputRequired"],
-  "ControllerAttitudeKd_perS" -> Missing["UserInputRequired"],
-  "MembraneLoadSpreadFractionOfRadius" -> Missing["UserInputRequired"],
-  "InitialAngularVelocity_rad_s" -> Missing["UserInputRequired"],
-  "WobbleNaturalPeriod_s" -> Missing["UserInputRequired"],
-  "WobbleDampingRatio" -> Missing["UserInputRequired"],
-  "MembraneMaterialDensity_kg_m3" -> Missing["UserInputRequired"],
-  "MembraneEffectiveYoungsModulus_Pa" -> Missing["UserInputRequired"],
-  "MembraneEffectiveUltimateStrength_Pa" -> Missing["UserInputRequired"],
-  "MembranePretension_N_m" -> Missing["UserInputRequired"],
-  "StructuralSafetyFactor" -> Missing["UserInputRequired"],
-  "MaximumDeflectionFractionOfRadius" -> Missing["UserInputRequired"],
-  "FlarePeakFraction" -> Missing["UserInputRequired"],
-  "FlarePeakTime_s" -> Missing["UserInputRequired"],
-  "FlareDuration_s" -> Missing["UserInputRequired"],
-  "FlareTailCutoffFraction" -> Missing["UserInputRequired"],
-  "CMEOnset_s" -> Missing["UserInputRequired"],
-  "CMEWindPressureMultiplier" -> Missing["UserInputRequired"],
-  "CMEDuration_s" -> Missing["UserInputRequired"],
-  "SolarWindProtonDensity_1AU_cm3" -> Missing["UserInputRequired"],
-  "SolarWindSpeed_1AU_m_s" -> Missing["UserInputRequired"],
-  "SEPDose_protons_cm2" -> Missing["UserInputRequired"],
-  "SEPDoseReference_protons_cm2" -> Missing["UserInputRequired"],
-  "PVDegradationPerSEPReferenceDoseFraction" -> Missing["UserInputRequired"],
-  "PVAnnualDegradationFraction" -> Missing["UserInputRequired"],
-  "ReflectivityAnnualLossFraction" -> Missing["UserInputRequired"],
-  "ReferenceMissionYears" -> Missing["UserInputRequired"],
-  "DistanceSearchRange_m" -> Missing["UserInputRequired"],
-  "ExactEquilibriumAccelerationTolerance_m_s2" -> Missing["UserInputRequired"],
-  "ExactEquilibriumTorqueTolerance_Nm" -> Missing["UserInputRequired"],
-  "ExactEquilibriumRelativeTolerance" -> Missing["UserInputRequired"],
-  "RadialDeviationToleranceFractionOfRadius" -> Missing["UserInputRequired"],
-  "LateralDeviationToleranceFractionOfRadius" -> Missing["UserInputRequired"],
-  "AttitudeTolerance_rad" -> Missing["UserInputRequired"],
-  "RecoveryTimeMaximum_s" -> Missing["UserInputRequired"],
-  "VelocityRecoveryTolerance_m_s" -> Missing["UserInputRequired"],
-  "AngularRateRecoveryTolerance_rad_s" -> Missing["UserInputRequired"],
-  "DynamicCheckDuration_s" -> Missing["UserInputRequired"]
-|>;
-
-$Phase1ReferenceNotes = <|
-  "IAU2015SolarConstants" -> "IAU 2015 Resolution B3 nominal solar conversion constants: solar luminosity 3.828×10^26 W; solar gravitational parameter 1.3271244×10^20 m^3/s^2; solar radius 6.957×10^8 m; total solar irradiance 1361 W/m^2. Nominal constants are conversion/reference values, not claims about instantaneous solar conditions. https://www.iau.org/static/resolutions/IAU2015_English.pdf",
-  "SIAndCODATAConstants" -> "NIST CODATA 2022 values: c is exact in SI; G = 6.67430×10^-11 m^3 kg^-1 s^-2; proton mass = 1.67262192595×10^-27 kg; Stefan-Boltzmann constant = 5.670374419×10^-8 W m^-2 K^-4. https://physics.nist.gov/cuu/Constants/",
-  "AstronomicalUnit" -> "The astronomical unit is exactly 149,597,870,700 m. IAU definition. https://www.iau.org/static/resolutions/IAU2012_English.pdf",
-  "JulianYear" -> "One Julian year is exactly 365.25 days of 86,400 SI seconds each. This is a defined duration conversion, not a claim about the length of an actual calendar or orbital year.",
-  "PVReferenceCondition" -> "IEC PV Standard Test Conditions (STC): AM1.5 global spectrum, 1000 W/m^2 total irradiance and 25 °C cell-junction temperature. The corresponding register values normalize published device ratings only; they are not predicted in-situ irradiance or operating temperature. IEC 60904-1/60904-3 and IEA-PVPS Best Practices Handbook, Third Edition (2021).",
-  "ModelFormChoices" -> "Geometry profile, PV layout, mass distribution, ICARUS load-transfer model, structural model and wobble model are shared design/material model choices. Flare/CME event definitions and temporal-profile choices, all ICARUS controller gains, and heliocentric reference-motion mode are pole-specific operating settings. The source currently implements only the named reduced-order model options and blocks the applicable pole calculation until each is selected and attributed.",
-  "UserConfirmedProjectInputs" -> "The only executable project-specific default is PoleCount = 2, the user-confirmed two-pole architecture. No station count, station scope, reflectivity, PV-efficiency target, PV layout, deferred equipment mass, material property, actuator capacity, geometry, pole-specific disturbance, mission setting or acceptance threshold is defaulted. Each pole has distinct orbit, initial-condition, environment, event-profile and controller inputs; legacy shared values are not treated as ongoing coupling.",
-  "PVPublishedBenchmarks" -> "No MIT PV device mass, specific-power or efficiency numbers are populated in the executable input register. Free-standing and fabric-integrated efficiency references are separate required inputs. Enter the chosen device measurements from the paper/datasheet and record the exact device variant, test conditions, table/page and URL/DOI. A DOI is not itself an input value: https://doi.org/10.1002/smtd.202200940",
-  "MembraneSubstrateAndReflectorMaterials" -> "No membrane substrate identity, areal mass, coating mass, density, modulus, strength, emissivity or optical transmission is defaulted. Supply the actual material designation and the properties for the selected grade, with supporting source/measurement.",
-  "ICARUSCapacity" -> "No ICARUS station force rating, mass, or station coordinates are defaulted. Enter measured/qualified per-station force capacity and mass, plus the local coordinates for every configured station. Do not substitute IKAROS sail data or an assistant estimate.",
-  "Geometry" -> "No canopy area, profile, curvature or perimeter surrogate is defaulted. Enter the CAD/profile-derived projected area and cap depth ratio, or replace phase1Geometry with an imported surface mesh.",
-  "DisturbancesAndDegradation" -> "No flare/CME/solar-wind/SEP event severity, timing, mission degradation or recovery assumptions are defaulted. Enter measured scenario records or explicitly identified design envelopes.",
-  "NumericalControls" -> "Mesh counts, solver goals, comparison tolerances, and structural model coefficients have no universal value. They are required user inputs, not defaults. Refine mesh counts until the reported independent mesh-convergence checks meet project-approved tolerances.",
-  "DeferredMass" -> "Deferred equipment mass is a required project input. The current Phase 1 inertia model only supports zero deferred equipment mass because no positions/component model are provided. Nonzero deferred mass is rejected until a spatial mass model is added.",
-  "MissingInputPolicy" -> "Any key whose default is Missing[UserInputRequired] blocks Phase1ComputeAll. The user must provide a value. Missing material/design values are not silently replaced with assistant estimates."
+  (* Remaining project-specific design/material/operating values are populated from the
+     user-approved assumption register below. Values are explicitly labelled as assumptions
+     in Phase1ApprovedAssumptions[] and remain subject to validation and replacement. *)
+  "Distance_m" -> 29919574140.0,
+  "PerPoleProjectedArea_m2" -> 6.0821044*10^17,
+  "CapDepthToPlanformRadius" -> 0.10,
+  "PVFraction" -> 0.005,
+  "ReflectorSolarTransmissivity" -> 0.0,
+  "PVSolarReflectivity" -> 0.05,
+  "PVSolarTransmissivity" -> 0.05,
+  "PVArealMass_kg_m2" -> 0.052,
+  "LegacymitArrayArealMass_kg_m2" -> 0.105,
+  "PVCellArraySpecificPower_W_kg" -> 730., (* User-approved free-standing PV reference assumption. *)
+  "PrimaryPVScenario" -> "PVCellArraySpecificPowerLimited",
+  "ReflectorArealMass_kg_m2" -> 0.00027,
+  "MembraneSubstrateMaterialName" -> "Legacy demonstrator Dyneema Composite CellArray (13 g/m^2 reference proxy; user-approved 20% mass reduction applied)",
+  "MembraneSubstrateMaterialClass" -> "DyneemaComposite",
+  "MembraneSubstrateReferenceArealMass_kg_m2" -> 0.013,
+  "WiringArealMass_kg_m2" -> 0.0001,
+  (* Synthetic mass-budget choice under the user-authorized modest-variation policy: +10%
+     from the prior 0.5 kg placeholder. The percentage is a provisional modelling choice,
+     not a separately specified user value or a measured actuator mass. *)
+  "ICARUSStationMass_kg" -> 0.55,
+  "ICARUSRedesignFeasibilityApproved" -> True,
+  "ICARUSRedesignForceReserveFraction" -> 0.10,
+  "ICARUSStationPositionsLocal_m" -> Automatic,
+  "PVCellReferenceEfficiency" -> 0.047,
+  "PVCellArrayEfficiencyReference" -> 0.052,
+  "PVEfficiencyTemperatureCoefficient_perK" -> -0.004,
+  "TransferEfficiency" -> 0.95,
+  "ConditioningEfficiency" -> 0.95,
+  "ReflectorIRemissivity" -> 0.255,
+  "PVIRemissivity" -> 0.85,
+  "BothSidesRadiate" -> True,
+  "PVTemperatureLimit_K" -> 343.15,
+  "ReflectorTemperatureLimit_K" -> 343.15,
+  "ICARUSStationForceCapacity_N" -> Automatic,
+  "ControllerTranslationKp_perS2" -> 1.71468*10^-8,
+  "ControllerTranslationKd_perS" -> 1.85185*10^-4,
+  "ControllerAttitudeKp_perS2" -> 1.71468*10^-8,
+  "ControllerAttitudeKd_perS" -> 1.85185*10^-4,
+  "MembraneLoadSpreadFractionOfRadius" -> 0.05,
+  "InitialAngularVelocity_rad_s" -> {0.,0.,0.},
+  "WobbleDampingRatio" -> 0.0,
+  "MembraneMaterialDensity_kg_m3" -> 970.0,
+  "MembraneEffectiveYoungsModulus_Pa" -> 1.13*10^10,
+  "MembraneEffectiveUltimateStrength_Pa" -> 3.73*10^8,
+  "MembranePretension_N_m" -> 2250.0,
+  "StructuralSafetyFactor" -> 2.0,
+  "MaximumDeflectionFractionOfRadius" -> 0.05,
+  "FlarePeakFraction" -> 0.00028,
+  "FlarePeakTime_s" -> 43200.0,
+  "FlareDuration_s" -> 3600.0,
+  "FlareTailCutoffFraction" -> 0.01,
+  "CMEOnset_s" -> 86400.0,
+  "CMEWindPressureMultiplier" -> 1260.0,
+  "CMEDuration_s" -> 148320.0,
+  "SolarWindProtonDensity_1AU_cm3" -> 5.0,
+  "SolarWindSpeed_1AU_m_s" -> 4.0*10^5,
+  "SEPDose_protons_cm2" -> Automatic,
+  "SEPDoseReference_protons_cm2" -> 7.93*10^10,
+  "PVDegradationPerSEPReferenceDoseFraction" -> 0.01,
+  "PVAnnualDegradationFraction" -> 0.01,
+  "ReflectivityAnnualLossFraction" -> 0.001,
+  "ReferenceMissionYears" -> 5.0,
+  "DistanceSearchRange_m" -> {0.1*149597870700.,5.0*149597870700.},
+  "ExactEquilibriumRelativeTolerance" -> 1.0*10^-8,
+  "RadialDeviationToleranceFractionOfRadius" -> 0.01,
+  "LateralDeviationToleranceFractionOfRadius" -> 0.01,
+  "AttitudeTolerance_rad" -> 0.0174533,
+  "RecoveryTimeMaximum_s" -> 86400.0,
+  "VelocityRecoveryTolerance_m_s" -> 1.0*10^-4,
+  "AngularRateRecoveryTolerance_rad_s" -> 1.0*10^-7,
+  "DynamicCheckDuration_s" -> 604800.0
 |>;
 
 
-$Phase1UserConfirmedInputNotes = <|
-  "PoleCount" -> "User-confirmed two-pole architecture; this is the only retained project-specific default."
-|>;
+
 
 $Phase1ReferenceAndSoftwareDefaultKeys = {
   "SolarLuminosity_W","SolarGravitationalParameter_m3_s2",
@@ -364,23 +344,20 @@ $Phase1ReferenceAndSoftwareDefaultKeys = {
   "StefanBoltzmann_W_m2_K4","CentimetersPerMeter","ProtonMass_kg",
   "PVSpecificPowerReferenceIrradiance_W_m2","PVReferenceTemperature_K",
   "PVScenarioOptions","PVSearchRange",
-  "NumericalWorkingPrecision","DynamicMaxSteps"
+  "NumericalWorkingPrecision","DynamicMaxSteps","WobbleRestoringModel"
 };
 
 (* Published physical/reference constants, standardized PV test conditions, supported
-   scenario labels, the mathematical coverage domain, and safe Mathematica execution controls
-   are reference/software definitions only. Optional source notes are descriptive metadata and
-   never determine whether a value is accepted by the calculation engine. *)
+   scenario labels, mathematical domains and safe Mathematica execution controls are
+   reference/software definitions. User-approved numerical controls are listed separately
+   from physical engineering assumptions by Phase1ApprovedAssumptions[]. *)
 phase1ProjectInputKeys[] := Select[Keys[$Phase1DefaultInputs],
   !(MemberQ[$Phase1ReferenceAndSoftwareDefaultKeys,#] &&
     SameQ[Lookup[$Phase1State["Inputs"],#,Missing[]],Lookup[$Phase1DefaultInputs,#,Missing[]]])&];
-phase1ProvenanceRequiredKeys[] := {};
 
 $Phase1State = <|
   "SchemaVersion" -> "11.9",
   "Inputs" -> $Phase1DefaultInputs,
-  "OptionalSourceNotes" -> $Phase1ReferenceNotes,
-  "InputNotes" -> $Phase1UserConfirmedInputNotes,
   "Derived" -> <||>,
   "Results" -> <||>,
   "AuditLog" -> {},
@@ -397,27 +374,225 @@ phase1StoreResult[name_String,value_] := Module[{updated},
 Phase1GetInputs[] := $Phase1State["Inputs"];
 Phase1GetInput[name_String] := Lookup[$Phase1State["Inputs"],name,Missing["UnknownInput",name]];
 Phase1MissingRequiredInputs[] := Select[Keys[$Phase1State["Inputs"]], MissingQ[$Phase1State["Inputs"][#]] &];
-Phase1MissingRequiredProvenance[] := {};
-Phase1InputStatus[] := Module[{missing=Phase1MissingRequiredInputs[],missingSources=Phase1MissingRequiredProvenance[]},
+(* ------------------------------------------------------------------------
+   Mutable/immutable inventory and recursive design-space perturbation
+   ------------------------------------------------------------------------
+   Immutable entries are physical laws/constants, the fixed two-sheet topology,
+   and intrinsic properties of the selected aluminum/copper/backside-film base
+   materials. Every other model input is mutable. Numerical execution controls
+   are inventoried as mutable but are not physical objective variables.
+*)
+$Phase1ImmutableInputNamePatterns = {
+  "PoleCount", "NumberOfPoles", "SheetCount", "SolarLuminosity", "SpeedOfLight",
+  "SolarGravitationalParameter", "GravitationalConstant", "StefanBoltzmann",
+  "PlanckConstant", "BoltzmannConstant", "AstronomicalUnit",
+  "AluminumDensity", "AluminumYoungsModulus", "AluminumPoissonRatio", "AluminumMeltingPoint",
+  "CopperDensity", "CopperResistivity", "AluminumWireDensity", "AluminumWireResistivity",
+  "BacksideFilmDensity", "BacksideFilmYoungsModulus", "BacksideFilmPoissonRatio",
+  "StructuralRibYoungsModulus"
+};
+$Phase1ImmutableInputKeys = Select[Union[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys],
+  Function[key, AnyTrue[$Phase1ImmutableInputNamePatterns, StringContainsQ[key,#]&]]];
+$Phase1MutableInputKeys = Complement[Union[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys],$Phase1ImmutableInputKeys];
+$Phase1MutableRuntimeControlKeys = Select[$Phase1MutableInputKeys,
+  Function[key,AnyTrue[{"Tolerance","WorkingPrecision","MaxIterations","MeshRadialCount",
+    "MeshAzimuthCount","GridPointCount","Cache","Watchdog","Timeout"},StringContainsQ[key,#]&]]];
+$Phase1MutableDesignKeys = Complement[$Phase1MutableInputKeys,$Phase1MutableRuntimeControlKeys];
+$Phase1MutableNodeLayoutKeys = {"PVCellsPerNode","PVNodeCellRows","PVNodeCellColumns"};
+
+$Phase1DesignDependencyMap = <|
+  "SolarDistance"->{"SolarIrradiance","LocalPVIncidence","CellCurrent","PVPower","RadiationPressure",
+    "CellAndBusConductorSections","I2RLoss","WireTemperature","SheetTemperature","OutwardForceMargin"},
+  "PVCellArea"->{"CellCount","CellCurrent","NodePitch","NodeCount","TabLength","BusCurrent",
+    "WireGauge","SupportRibSpacing","FoilPanelSpan","StructuralRigidity","Mass","PVPower"},
+  "PVCellsPerNodeAndNodeLayout"->{"IntraNodeTabCount","NodePitch","NodeVoltage","NodeCurrent",
+    "InterNodeSeriesCount","CollectorSectorCount","BusTreeTopology","SupportRibSpacing","Mass","I2RLoss"},
+  "BusVoltageAndSectorSize"->{"SeriesStrings","CumulativeSectorCurrent","ConductorAWG","ParallelConductors",
+    "BusLength","VoltageDrop","I2RLoss","WireTemperature","InterconnectMass"},
+  "AluminumFoilAndWireSpacing"->{"SupportSpan","PanelDeflection","AluminumStress","FoilMass",
+    "BacksideLaminateRequirement","SupportRibMass"},
+  "BacksideFilm"->{"CompositeNeutralAxis","CompositeBendingRigidity","FilmStress","LaminateMass",
+    "RigidityPerArealMass","PanelPressureLimit"},
+  "OpticalPropertiesAndPVFraction"->{"AbsorbedPower","ReflectedMomentum","PVPower","SheetTemperature",
+    "RadiationForceVector","OutwardForceMargin"},
+  "ThermalCeilingsAndConductorBounds"->{"WireCrossSection","WireTemperature","PVTemperature",
+    "ReflectorTemperature","Feasibility"},
+  "FutureMassGrowthTarget"->{"RequiredOutwardForceSurplus","FutureAddedMassCapacity","PerSheetAcceptance"}
+|>;
+
+Phase1MutabilityAudit[] := Module[{keys=Keys[$Phase1DefaultInputs]},
+  <|"ImmutableKeys"->$Phase1ImmutableInputKeys,"MutableKeys"->$Phase1MutableInputKeys,
+    "MutableDesignKeys"->$Phase1MutableDesignKeys,"MutableRuntimeControlKeys"->$Phase1MutableRuntimeControlKeys,
+    "MutableKeyCount"->Length[$Phase1MutableInputKeys],"ImmutableKeyCount"->Length[$Phase1ImmutableInputKeys],
+    "UnclassifiedKeys"->Complement[keys,Join[$Phase1ImmutableInputKeys,$Phase1MutableInputKeys]],
+    "TwoIndependentSheetsFixed"->True,"PoleIDs"->$Phase1PoleIDs,
+    "NoCombinedMechanicalEquilibrium"->True,"DependencyMap"->$Phase1DesignDependencyMap,
+    "ClassificationRule"->"Only fixed two-sheet topology, physical constants/laws and intrinsic properties of the chosen base materials are immutable; other registered inputs are mutable. Runtime controls are mutable but are not scored as physical design variables."|>
+];
+
+phase1MutablePerturbationValues[key_String,value_] := Which[
+  MemberQ[{True,False},value], {Not[value]},
+  VectorQ[value,NumericQ] && Length[value]==2 && StringContainsQ[key,"Range"], {0.5 value,0.25 value,1.25 value},
+  IntegerQ[value] && MemberQ[$Phase1MutableNodeLayoutKeys,key], {},
+  IntegerQ[value] && value>0, DeleteDuplicates[{Max[1,Round[value/2]],Max[1,Round[value/4]],Max[1,Ceiling[1.25 value]]}],
+  NumericQ[value] && StringContainsQ[key,"Angle"], DeleteDuplicates[Clip[#,{-90.,90.}]&/@{value-5.,value-2.5,value+5.}],
+  NumericQ[value] && AnyTrue[{"Fraction","Efficiency","Reflectivity","Emissivity","Transmissivity","Absorptivity"},StringContainsQ[key,#]&],
+    DeleteDuplicates[Clip[#, {0.,1.}]&/@{value/2.,value/4.,1.25 value}],
+  NumericQ[value] && value>0., {0.5 value,0.25 value,1.25 value},
+  NumericQ[value] && value<0., {0.5 value,0.25 value,1.25 value},
+  True, {}
+];
+
+Phase1MutablePerturbationCases[input_Association,includeRuntimeControl_:False] := Module[
+  {cases={},key,value,values,layout,keys,scenario,factor,overrides,allNumericKeys},
+  keys=If[TrueQ[includeRuntimeControl],$Phase1MutableInputKeys,$Phase1MutableDesignKeys];
+  (* Simultaneous whole-vector perturbations exercise every positive numeric design value
+     together; the individual cases below then resolve competing directions recursively. *)
+  allNumericKeys=Select[keys,KeyExistsQ[input,#]&&NumericQ[input[#]]&&
+    !MemberQ[$Phase1MutableNodeLayoutKeys,#]&];
+  Do[
+    overrides=Association@Map[Function[k, k->Which[
+      StringContainsQ[k,"Angle"],input[k],
+      AnyTrue[{"Fraction","Efficiency","Reflectivity","Emissivity","Transmissivity","Absorptivity"},StringContainsQ[k,#]&],
+        Clip[factor input[k],{0.,1.}],
+      IntegerQ[input[k]],Max[1,Round[factor input[k]]],
+      True,input[k] factor]],allNumericKeys];
+    AppendTo[cases,<|"Parameter"->"AllNumericMutableInputsSimultaneous",
+      "Baseline"->"Current input vector","PerturbedValue"->factor,
+      "Perturbation"->factor,"CandidateInputs"->Join[input,overrides]|>],
+    {factor,{0.5,0.25,1.25}}];
+  Do[
+    If[KeyExistsQ[input,key],value=input[key];values=phase1MutablePerturbationValues[key,value];
+      Do[AppendTo[cases,<|"Parameter"->key,"Baseline"->value,"PerturbedValue"->v,
+        "Perturbation"->If[NumericQ[value]&&value!=0.,v/value,Missing["NonNumericOrZeroBaseline"]],
+        "CandidateInputs"->Join[input,<|key->v|>]|>],{v,values}]
+    ],{key,keys}];
+  (* The PV node cell count, rows and columns are varied as a consistent discrete layout tuple.
+     Skip this branch until all three node-layout inputs exist; never manufacture missing inputs. *)
+  If[And@@(KeyExistsQ[input,#]&/@{"PVCellsPerNode","PVNodeCellRows","PVNodeCellColumns"}),
+    Do[AppendTo[cases,<|"Parameter"->"PVNodeLayout","Baseline"->{input["PVNodeCellRows"],input["PVNodeCellColumns"]},
+        "PerturbedValue"->layout,"Perturbation"->"Discrete layout candidate",
+        "CandidateInputs"->Join[input,<|"PVNodeCellRows"->layout[[1]],"PVNodeCellColumns"->layout[[2]],
+          "PVCellsPerNode"->Times@@layout|>]|>],
+      {layout,{{1,2},{2,2},{2,3},{3,3},{3,4},{4,4},{4,5},{5,5},{5,10},{10,10},{10,20},{20,20},{20,25}}}]
+  ];
+  (* Select among the explicitly supported cell-array output assumptions. *)
+  Do[AppendTo[cases,<|"Parameter"->"PrimaryPVScenario","Baseline"->input["PrimaryPVScenario"],
+      "PerturbedValue"->scenario,"Perturbation"->"Discrete PV conversion scenario",
+      "CandidateInputs"->Join[input,<|"PrimaryPVScenario"->scenario|>]|>],
+    {scenario,{"PVCellArraySpecificPowerLimited","PVCellReferenceEfficiency","ProjectSpecifiedTargetEfficiency"}}];
+  cases
+];
+
+Phase1RunMutableSensitivitySweep[input_Association,evaluator_Function] := Module[
+  {baseline,cases,evaluated,rows},
+  baseline=Quiet@Check[evaluator[input],$Failed];
+  cases=Phase1MutablePerturbationCases[input,True];
+  evaluated=Map[Function[c,With[{r=Quiet@Check[evaluator[c["CandidateInputs"]],$Failed]},
+    Join[KeyDrop[c,{"CandidateInputs"}],<|"Evaluation"->r,
+      "Feasible"->TrueQ[AssociationQ[r]&&Lookup[r,"Feasible",False]],
+      "Objective"->If[AssociationQ[r],Lookup[r,"Objective",-Infinity],-Infinity]|>]]],cases];
+  rows=SortBy[evaluated,(-Lookup[#,"Objective",-Infinity])&];
+  <|"Baseline"->baseline,"PerturbationCaseCount"->Length[cases],"EvaluatedCaseCount"->Length[evaluated],
+    "Results"->rows,"BestFeasibleCase"->If[AnyTrue[rows,TrueQ[Lookup[#,"Feasible",False]]&],
+      First@Select[rows,TrueQ[Lookup[#,"Feasible",False]]&],Missing["NoFeasiblePerturbation"]],
+    "ProgressiveFactors"->{0.5,0.25,1.25},"ToleranceTighteningDirections"->{0.5,0.25},
+    "ToleranceRelaxationDirection"->1.25,"BaselineInputAssociationUnchanged"->True|>
+];
+
+Phase1RecursiveMutableDesignSweep[input_Association,evaluator_Function,maxPasses_Integer:2] := Module[
+  {current=input,currentResult,bestResult,pass,cases,evaluated,best,improved=False,history={},rows,baselineObjective},
+  currentResult=Quiet@Check[evaluator[current],$Failed];
+  If[!AssociationQ[currentResult]||!TrueQ[Lookup[currentResult,"Feasible",False]],
+    Return[Failure["MutableDesignSweepBaselineInfeasible",<|"BaselineEvaluation"->currentResult|>]]];
+  baselineObjective=Lookup[currentResult,"Objective",-Infinity];
+  Do[
+    cases=Phase1MutablePerturbationCases[current];
+    evaluated=Map[Function[c,With[{r=Quiet@Check[evaluator[c["CandidateInputs"]],$Failed]},
+      <|"Case"->KeyDrop[c,{"CandidateInputs"}],"CandidateInputs"->c["CandidateInputs"],
+        "Evaluation"->r,"Feasible"->TrueQ[AssociationQ[r]&&Lookup[r,"Feasible",False]],
+        "Objective"->If[AssociationQ[r],Lookup[r,"Objective",-Infinity],-Infinity]|>]],cases];
+    rows=Select[evaluated,TrueQ[Lookup[#,"Feasible",False]]&];
+    If[rows==={},AppendTo[history,<|"Pass"->pass,"FeasiblePerturbations"->0,"Improvement"->False|>];Break[]];
+    best=First@MaximalBy[rows,Lookup[#,"Objective",-Infinity]&];
+    improved=TrueQ[best["Objective"]>Lookup[currentResult,"Objective",-Infinity]];
+    AppendTo[history,<|"Pass"->pass,"FeasiblePerturbations"->Length[rows],"BestObjective"->best["Objective"],
+      "Improvement"->improved,"BestCase"->best["Case"]|>];
+    If[improved,current=best["CandidateInputs"];currentResult=best["Evaluation"],Break[]],
+    {pass,1,maxPasses}];
+  <|"Status"->"Bounded heuristic coordinate-perturbation pass completed; this is not a proof of global optimality or a substitute for full-source execution.",
+    "GlobalOptimalityProven"->False,"FullSourceRuntimeVerified"->False,
+    "BaselineObjective"->baselineObjective,"OptimizedObjective"->Lookup[currentResult,"Objective",Missing["NotEvaluated"]],
+    "BestInputAssociation"->current,"BestEvaluation"->currentResult,"PassHistory"->history,
+    "MutableParameterCount"->Length[$Phase1MutableDesignKeys],"DesignInputsPerturbed"->$Phase1MutableDesignKeys,
+    "NodeLayoutsEnumerated"->If[And@@(KeyExistsQ[input,#]&/@{"PVCellsPerNode","PVNodeCellRows","PVNodeCellColumns"}),
+      {{1,2},{2,2},{2,3},{3,3},{3,4},{4,4},{4,5},{5,5},{5,10},{10,10},{10,20},{20,20},{20,25}},{}],
+    "RecursiveCoordinateCoOptimization"->True,"TwoPoleSeparationPreserved"->True|>
+];
+
+(* Pure one-pole candidate evaluator used by the recursive mutable design sweep.
+   It accepts a complete isolated pole-input association and never writes project state. *)
+phase1EvaluateMutableDesignCandidate[in_Association] := Module[
+  {geo,mesh,optics,candidate,thermalBundle,thermal,pv,power,structure,mass,natural,wirePass,feasible},
+  geo=phase1Geometry[in];
+  mesh=phase1Mesh[in,geo,in["OptimizerMeshRadialCount"],in["OptimizerMeshAzimuthCount"]];
+  optics=phase1Optics[in];
+  candidate=phase1NaturalCandidateAt[in,geo,mesh,optics,in["PVFraction"],in["Distance_m"]];
+  If[FailureQ[candidate],Return[<|"Feasible"->False,"Failure"->candidate,"Objective"->-Infinity|>]];
+  thermalBundle=phase1CoupledPVThermal[candidate["Inputs"],geo,candidate["AttitudeMesh"],optics,
+    candidate["Radiation"],in["PVFraction"],in["Distance_m"],0.];
+  If[FailureQ[thermalBundle],Return[<|"Feasible"->False,"Failure"->thermalBundle,"Objective"->-Infinity|>]];
+  thermal=thermalBundle["Thermal"];pv=thermalBundle["PVPerformance"];
+  power=phase1Power[candidate["Inputs"],pv];
+  structure=phase1Structural[candidate["Inputs"],geo,candidate["Radiation"],in["PVFraction"]];
+  mass=candidate["Mass"];natural=candidate["Natural"];
+  wirePass=TrueQ[Lookup[mass["ElectricalNetwork"],"WireThermalScreenPass",False]];
+  feasible=TrueQ[mass["MassLedgerCloses"]&&natural["FutureMassGrowthTargetPass"]&&natural["ExactTorqueEquilibrium"]&&
+    thermal["AllThermalLimitsWithinBounds"]&&thermalBundle["PVThermalCouplingConverged"]&&
+    structure["StructuralScreenPass"]&&wirePass&&pv["PVOutputDoesNotExceedAbsorbedPower"]&&
+    pv["PVOutputDoesNotExceedSpecificPower"]];
+  <|"Feasible"->feasible,"Objective"->power["ConditionedDeliveredPower_W_PerPole"],
+    "Distance_m"->in["Distance_m"],"PVFraction"->in["PVFraction"],
+    "FutureMassCapacity_kg"->natural["FutureMassCapacityBeforeRadialBalance_kg"],
+    "FutureMassTarget_kg"->natural["FutureMassTarget_kg"],
+    "MassLedgerCloses"->mass["MassLedgerCloses"],"Thermal"->thermal,"PVPerformance"->pv,
+    "PowerLedger"->power,"Structure"->structure,"Natural"->natural,"Mass"->mass,
+    "CandidateState"->candidate,"InputAssociation"->in,
+    "PerPoleOnly"->True,"OtherPoleStateReadOrModified"->False|>
+];
+
+Phase1RecursiveMutableDesignSweep[] := Phase1RecursiveMutableDesignSweep[
+  Phase1GetInputs[],phase1EvaluateMutableDesignCandidate,2];
+
+Phase1InputStatus[] := Module[{missing=Phase1MissingRequiredInputs[]},
   <|"Ready"->(missing==={}),
     "MissingRequiredInputKeys"->missing,
-    "OptionalSourceNotesMissing"->missingSources,
-    "InputCount"->Length[Keys[$Phase1State["Inputs"]]],
-    "MissingRequiredInputCount"->Length[missing],
-    "SourceNotesPolicy"->"Optional descriptive notes do not gate input acceptance or calculations."|>
+    "MissingRequiredInputCount"->Length[missing]|>
+];
+
+(* Normalize the former substrate-mass key from M02 saved states to the explicit
+   supplier/reference input. Ambiguous states are rejected. The new material class
+   remains Missing after legacy loads and requires an explicit selection. *)
+phase1NormalizeSavedSharedInputs[shared_Association] := Module[
+  {legacyKey="MembraneSubstrateArealMass_kg_m2",referenceKey="MembraneSubstrateReferenceArealMass_kg_m2"},
+  If[KeyExistsQ[shared,legacyKey] && KeyExistsQ[shared,referenceKey],
+    Return[Failure["AmbiguousSubstrateMassInputsInSavedState",<|"Keys"->{legacyKey,referenceKey}|>]]
+  ];
+  If[KeyExistsQ[shared,legacyKey],
+    Join[KeyDrop[shared,{legacyKey}],<|referenceKey->shared[legacyKey]|>],shared]
 ];
 
 $Phase1InputCategories = <|
   "NumericalAndConvergenceControls" -> {"MeshAreaRelativeTolerance","AccelerationCrossCheckRelativeTolerance","SolarReferenceConsistencyRelativeTolerance","ThermalResidualRelativeTolerance","QuaternionNormalizationTolerance","OpticalClosureTolerance","PowerLedgerRelativeTolerance","ICARUSLoadMapRelativeTolerance","MeshCoefficientCrossCheckTolerance","OptimizerGridCrossCheckRelativeTolerance","OptimizerMaxIterations","PVThermalCouplingMaxIterations","OptimizerGridPointCount","OptimizerCoverageGridPointCount","MeshRadialCount","MeshAzimuthCount","OptimizerMeshRadialCount","OptimizerMeshAzimuthCount","DynamicAccuracyGoal","DynamicPrecisionGoal","DynamicSampleCount","DynamicLoadPropagationSampleCount"},
-  "ArchitectureAndModelChoices" -> {"PoleCount","ICARUSStationCount","ICARUSStationCountScope","PVLayoutModel","GeometryProfileModel","MassDistributionModel","ICARUSLoadTransferModel","MembraneStructuralModel","WobbleRestoringModel","ReflectionModel"},
+  "ArchitectureAndModelChoices" -> {"PoleCount","ICARUSStationCount","ICARUSStationCountScope","PVLayoutModel","GeometryProfileModel","MassDistributionModel","ICARUSLoadTransferModel","MembraneStructuralModel","ReflectionModel"},
   "GeometryAndReferenceState" -> {"PerPoleProjectedArea_m2","CapDepthToPlanformRadius"},
-  "OpticalPVAndElectrical" -> {"ReflectorSolarReflectivity","ProjectTargetEfficiency","PVFraction","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","PVArealMass_kg_m2","PVIntegratedFabricArealMass_kg_m2","PVIntegratedMassIncludesStructuralFabric","PVFreeStandingSpecificPower_W_kg","PVIntegratedSpecificPower_W_kg","PrimaryPVScenario","MITEfficiencyReference","PVIntegratedEfficiencyReference","PVEfficiencyTemperatureCoefficient_perK","TransferEfficiency","ConditioningEfficiency"},
-  "MassMaterialsAndStructure" -> {"CircularMembraneDeflectionCoefficient","DeferredEquipmentMass_kg","OtherInstalledArealMass_kg_m2","PerimeterHardwareLinearMass_kg_m","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialName","MembraneSubstrateArealMass_kg_m2","WiringArealMass_kg_m2","ICARUSStationMass_kg","MembraneMaterialDensity_kg_m3","MembraneEffectiveYoungsModulus_Pa","MembraneEffectiveUltimateStrength_Pa","MembranePretension_N_m","StructuralSafetyFactor","MaximumDeflectionFractionOfRadius"},
-  "ICARUSControlAndLoadTransfer" -> {"ICARUSStationPositionsLocal_m","ICARUSStationForceCapacity_N","MembraneLoadSpreadFractionOfRadius"},
+  "OpticalPVAndElectrical" -> {"ReflectorSolarReflectivity","ProjectTargetEfficiency","PVFraction","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","PVArealMass_kg_m2","LegacymitArrayArealMass_kg_m2","PVCellArrayMassPolicy","PVCellArraySpecificPower_W_kg","LegacyIntegratedPVSpecificPower_W_kg","PrimaryPVScenario","PVCellReferenceEfficiency","PVCellArrayEfficiencyReference","PVEfficiencyTemperatureCoefficient_perK","TransferEfficiency","ConditioningEfficiency"},
+  "MassMaterialsAndStructure" -> {"CircularMembraneDeflectionCoefficient","DeferredEquipmentMass_kg","OtherInstalledArealMass_kg_m2","PerimeterHardwareLinearMass_kg_m","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialName","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","WiringArealMass_kg_m2","ICARUSStationMass_kg","MembraneMaterialDensity_kg_m3","MembraneEffectiveYoungsModulus_Pa","MembraneEffectiveUltimateStrength_Pa","MembranePretension_N_m","StructuralSafetyFactor","MaximumDeflectionFractionOfRadius"},
+  "ICARUSControlAndLoadTransfer" -> {"ICARUSStationPositionsLocal_m","ICARUSStationForceCapacity_N","ICARUSRedesignFeasibilityApproved","ICARUSRedesignForceReserveFraction","MembraneLoadSpreadFractionOfRadius"},
   "Thermal" -> {"ReflectorIRemissivity","PVIRemissivity","BothSidesRadiate","PVTemperatureLimit_K","ReflectorTemperatureLimit_K"},
-  "RotationAndWobble" -> {"WobbleNaturalPeriod_s","WobbleDampingRatio"},
+  "RotationAndWobble" -> {"WobbleDampingRatio"},
   "RadiationMaterialDegradationProperties" -> {"SEPDoseReference_protons_cm2","PVDegradationPerSEPReferenceDoseFraction","PVAnnualDegradationFraction","ReflectivityAnnualLossFraction"},
-  "AcceptanceAndRecoveryCriteria" -> {"ExactEquilibriumAccelerationTolerance_m_s2","ExactEquilibriumTorqueTolerance_Nm","ExactEquilibriumRelativeTolerance","RadialDeviationToleranceFractionOfRadius","LateralDeviationToleranceFractionOfRadius","AttitudeTolerance_rad","RecoveryTimeMaximum_s","VelocityRecoveryTolerance_m_s","AngularRateRecoveryTolerance_rad_s"}
+  "AcceptanceAndRecoveryCriteria" -> {"ExactEquilibriumRelativeTolerance","RadialDeviationToleranceFractionOfRadius","LateralDeviationToleranceFractionOfRadius","AttitudeTolerance_rad","RecoveryTimeMaximum_s","VelocityRecoveryTolerance_m_s","AngularRateRecoveryTolerance_rad_s"}
 |>;
 $Phase1PoleOperatingInputCategories = <|
   "PoleSpecificOrbitAndInitialState" -> {"Distance_m","DistanceSearchRange_m","InitialPositionLocal_m","InitialVelocityLocal_m_s","InitialVelocityHeliocentric_m_s","HeliocentricReferenceMotionMode","InitialAttitudeSmallAngles_rad","InitialAngularVelocity_rad_s","IncidenceAngle_deg","DynamicCheckDuration_s"},
@@ -425,19 +600,103 @@ $Phase1PoleOperatingInputCategories = <|
   "PoleSpecificControlSettings" -> {"ControllerTranslationKp_perS2","ControllerTranslationKd_perS","ControllerAttitudeKp_perS2","ControllerAttitudeKd_perS"}
 |>;
 
-Phase1InputRequirements[] := Module[{inputs=Phase1GetInputs[],groups,missing,status,allCategorized},
-  groups=Association@KeyValueMap[Function[{name,keys},
-    missing=Select[keys,MissingQ[Lookup[inputs,#,Missing[]]]&];
-    name-><|"RequiredKeys"->keys,"MissingValues"->missing,"MissingValueCount"->Length[missing]|>
-  ],$Phase1InputCategories];
-  status=Phase1InputStatus[];
-  allCategorized=DeleteDuplicates[Flatten[Values[$Phase1InputCategories]]];
-  <|"Ready"->TrueQ[status["Ready"]] && Complement[status["MissingRequiredInputKeys"],allCategorized]==={},
-    "RequiredProjectAndNumericalInputCount"->Total[Length/@Values[$Phase1InputCategories]],
-    "MissingValueCount"->Length[status["MissingRequiredInputKeys"]],
-    "Groups"->groups,
-    "UnclassifiedRequiredInputs"->Complement[status["MissingRequiredInputKeys"],allCategorized],
-    "SourceNotesAreOptional"->True|>
+(* Approved assumption classification. The values in the model's shared and pole-local
+   registers remain assumptions unless and until replaced by measured or qualified data. *)
+$Phase1ApprovedAssumptionNotes = <|
+  "PerPoleProjectedArea_m2" -> "User-approved area assumption equal to 10% of the nominal solar photospheric surface area per pole; not CAD or surveyed geometry.",
+  "CapDepthToPlanformRadius" -> "Spherical-cap depth/radius ratio selected as the initial geometry assumption.",
+  "ReflectorSolarReflectivity" -> "User-approved 99.9% target. This is a design target assumption, not a measured coating spectrum or qualification result.",
+  "PVCellArraySpecificPower_W_kg" -> "User-approved 730 W/kg reference for the free-standing MIT PV case; device-specific space performance remains unqualified.",
+  "MembraneSubstrateReferenceArealMass_kg_m2" -> "13 g/m^2 Legacy demonstrator DCF substrate reference proxy; the model applies the user-approved 20% reduction only when DyneemaComposite is selected.",
+  "MembraneSubstrateMaterialClass" -> "DyneemaComposite applies the approved 20% mass reduction; UltrathinFilm is retained as the separate no-Dyneema comparison route.",
+  "MembraneEffectiveYoungsModulus_Pa" -> "User-approved reduced-order effective modulus assumption; requires actual cell array/laminate coupon data for qualification.",
+  "MembraneEffectiveUltimateStrength_Pa" -> "User-approved isotropic-equivalent strength assumption derived from the stated DCF line-strength lower bound; not a material allowable.",
+  "MembranePretension_N_m" -> "User-approved preliminary installed tension assumption; actual deployment and retention capability is unqualified.",
+  "ICARUSStationMass_kg" -> "0.55 kg per station is a synthetic mass-budget allowance selected under the user-authorized modest-variation policy, +10% from the former 0.5 kg placeholder. The numerical choice is provisional, not a separately user-specified value, measurement or vendor specification.",
+  "ICARUSRedesignFeasibilityApproved" -> "User-approved Phase 1 design premise: the current ICARUS actuator concept was not mission-specific, but modest targeted reengineering is considered feasible and likely. This grants permission to calculate a redesign target; it does not assert present hardware capability or qualification.",
+  "ICARUSRedesignForceReserveFraction" -> "Provisional synthetic 10% screening reserve above the maximum calculated per-station force demand, selected under the user-authorized modest-variation policy. It is not a separately user-specified numerical value, qualified factor of safety or reliability allowance.",
+  "ICARUSStationPositionsLocal_m" -> "Four assumed stations at cardinal perimeter locations; positions are recalculated from the shared planform radius and station count.",
+  "PVTemperatureLimit_K" -> "343.15 K (70 C) screening limit assumption; the selected laminate/device continuous-use rating must be verified.",
+  "ReflectorTemperatureLimit_K" -> "343.15 K (70 C) screening limit assumption; coating and substrate temperature limits must be verified.",
+  "CMEWindPressureMultiplier" -> "1-in-40-year stress-scenario multiplier, not a date-specific forecast; 2270 remains a sensitivity case.",
+  "FlarePeakFraction" -> "Historical total-solar-irradiance excursion used as a simplified stress-scenario assumption, not an X-ray-band or near-Sun forecast.",
+  "SEPDose_protons_cm2" -> "Derived independently for each pole from the 1 AU reference fluence using an inverse-square screening proxy and that pole's distance.",
+  "ExactEquilibriumRelativeTolerance" -> "User-approved numerical screening tolerance; derived absolute force and torque tolerances are calculated separately for each pole.",
+  "WobbleDampingRatio" -> "Undamped reference-case assumption until actual membrane/joint damping is measured.",
+  "ICARUSStationForceCapacity_N" -> "Present hardware force rating remains Automatic/unknown. Phase1ICARUSRedesignSizing derives a conditional future per-station force target from each pole's own unconstrained dynamic demand plus the approved 10% reserve; this is not a claim that current hardware meets it."
+|>;
+
+$Phase1ApprovedAssumptionGroups = <|
+  "SharedEngineeringAssumptions" -> DeleteDuplicates[Flatten[Values[KeyDrop[$Phase1InputCategories,{"NumericalAndConvergenceControls"}]]]],
+  "PoleSpecificOperatingAssumptions" -> DeleteDuplicates[Flatten[Values[$Phase1PoleOperatingInputCategories]]],
+  "NumericalExecutionSettings" -> DeleteDuplicates[Flatten[Values[KeyTake[$Phase1InputCategories,{"NumericalAndConvergenceControls"}]]]]
+|>;
+
+$Phase1AlternateMaterialScenarioPresets = <|
+  "NoDyneemaUltrathinFilmComparison" -> <|
+    "Classification" -> "UserApprovedAssumption_ComparisonOnly",
+    "Inputs" -> <|
+      "MembraneSubstrateMaterialName" -> "No-Dyneema ultrathin-film comparison candidate",
+      "MembraneSubstrateMaterialClass" -> "UltrathinFilm",
+      "MembraneSubstrateReferenceArealMass_kg_m2" -> 0.00071,
+      "WiringArealMass_kg_m2" -> 0.0001,
+      "ReflectorArealMass_kg_m2" -> 0.00027
+    |>,
+    "Scope" -> "Mass-ledger comparison route only. Do not carry Dyneema density, modulus, strength, pretension, emissivity or temperature limits over to this film route without a separate material assumption/qualification."
+  |>
+|>;
+
+Phase1InputRequirements[] := Module[
+  {inputs = Phase1GetSharedInputs[], sharedGroups, sharedMissing, sharedCategorized,
+   poleIDs, poleGroups, poleCategorized, unclassifiedShared, unclassifiedPole, ready},
+  sharedGroups = Association @ KeyValueMap[Function[{name, keys},
+    With[{missing = Select[keys, MissingQ[Lookup[inputs, #, Missing[]]] &]},
+      name -> <|"RequiredKeys" -> keys, "MissingValues" -> missing,
+        "MissingValueCount" -> Length[missing]|>
+    ]
+  ], $Phase1InputCategories];
+  sharedMissing = Select[Keys[inputs], MissingQ[Lookup[inputs, #, Missing[]]] &];
+  sharedCategorized = DeleteDuplicates[Flatten[Values[$Phase1InputCategories]]];
+  poleIDs = If[TrueQ[$Phase1ExecutingPole], {$Phase1CurrentPole}, $Phase1PoleIDs];
+  poleGroups = AssociationMap[Function[pole,
+    Module[{poleInputs = Phase1GetPoleInputs[pole], groups, missingKeys},
+      groups = Association @ KeyValueMap[Function[{name, keys},
+        With[{missing = Select[keys, MissingQ[Lookup[poleInputs, #, Missing[]]] &]},
+          name -> <|"RequiredKeys" -> keys, "MissingValues" -> missing,
+            "MissingValueCount" -> Length[missing]|>
+        ]
+      ], $Phase1PoleOperatingInputCategories];
+      missingKeys = Select[$Phase1PoleOperatingKeys, MissingQ[Lookup[poleInputs, #, Missing[]]] &];
+      <|"Groups" -> groups, "MissingRequiredInputKeys" -> missingKeys,
+        "MissingRequiredInputCount" -> Length[missingKeys]|>
+    ]
+  ], poleIDs];
+  poleCategorized = DeleteDuplicates[Flatten[Values[$Phase1PoleOperatingInputCategories]]];
+  unclassifiedShared = Complement[sharedMissing, sharedCategorized];
+  unclassifiedPole = AssociationMap[
+    Complement[poleGroups[#]["MissingRequiredInputKeys"], poleCategorized] &, poleIDs];
+  ready = sharedMissing === {} &&
+    And @@ (poleGroups[#]["MissingRequiredInputKeys"] === {} & /@ poleIDs) &&
+    unclassifiedShared === {} && And @@ (unclassifiedPole[#] === {} & /@ poleIDs);
+  <|"Ready" -> TrueQ[ready], "RequiredSharedInputCount" -> Length[Keys[inputs]],
+    "MissingSharedInputCount" -> Length[sharedMissing], "SharedGroups" -> sharedGroups,
+    "PoleOperatingRequirements" -> poleGroups,
+    "UnclassifiedSharedRequiredInputs" -> unclassifiedShared,
+    "UnclassifiedPoleOperatingInputs" -> unclassifiedPole,
+    "SharedDesignMaterialInputCategories" -> $Phase1InputCategories,
+    "PoleOperatingInputCategories" -> $Phase1PoleOperatingInputCategories,
+    "MissingRequiredInputKeys" -> Join[sharedMissing,
+      Flatten[Table[(pole <> "::" <> #) & /@ poleGroups[pole]["MissingRequiredInputKeys"], {pole, poleIDs}]]],
+    "MissingValueCount" -> Length[sharedMissing] + Total[poleGroups[#]["MissingRequiredInputCount"] & /@ poleIDs],
+    "Groups" -> sharedGroups,
+    "UnclassifiedRequiredInputs" -> unclassifiedShared,
+    "RequiredProjectAndNumericalInputCount" -> Total[Length /@ Values[$Phase1InputCategories]] +
+      Length[poleIDs] Total[Length /@ Values[$Phase1PoleOperatingInputCategories]],
+    "Rule" -> "Full model execution requires every registered value to be available. Values populated from the approved register are assumptions, not measured properties; unresolved ICARUS capacity remains demand-only and does not qualify hardware.",
+    "RequiredValuesMustBeExplicit" -> False,
+    "ApprovedAssumptionCount" -> Phase1ApprovedAssumptions[]["ApprovedAssumptionCount"],
+    "ApprovedAssumptions" -> Phase1ApprovedAssumptions[],
+    "UnresolvedEngineeringAndQualificationItems" -> Phase1ApprovedAssumptions[]["UnresolvedEngineeringAndQualificationItems"]|>
 ];
 (* Public output accessors always validate the central input snapshot first.
    Raw Phase1GetResults[] is retained for internal state-management code. *)
@@ -452,40 +711,31 @@ Phase1GetResult[name_String] := Module[{computed=phase1EnsureCalculated[]},
 ];
 
 
-phase1DefaultInputAudit[] := Module[{projectKeys,referenceConstants,standardPVReferences,softwareDefinitions,requiredSharedProjectKeys},
+phase1DefaultInputAudit[] := Module[
+  {projectKeys,referenceConstants,standardPVReferences,softwareDefinitions,assumptions},
+  assumptions=Phase1ApprovedAssumptions[];
   projectKeys=Join[Keys@Select[$Phase1DefaultInputs,MissingQ],$Phase1PoleOperatingKeys];
-  requiredSharedProjectKeys=Complement[Keys@Select[$Phase1DefaultInputs,MissingQ],$Phase1PoleOperatingKeys];
   referenceConstants={"SolarLuminosity_W","SolarGravitationalParameter_m3_s2","UniversalGravitationalConstant_m3_kg_s2",
     "SolarIrradianceAt1AU_W_m2","SpeedOfLight_m_s","AstronomicalUnit_m","Year_s",
     "StefanBoltzmann_W_m2_K4","CentimetersPerMeter","ProtonMass_kg"};
   standardPVReferences={"PVSpecificPowerReferenceIrradiance_W_m2","PVReferenceTemperature_K"};
-  softwareDefinitions={"PVScenarioOptions","PVSearchRange",
-    "NumericalWorkingPrecision","DynamicMaxSteps"};
-  <|"OnlyProjectSpecificDefault"-><|"PoleCount"->2|>,
-    "OtherProjectSpecificDefaultsPresent"->{},
+  softwareDefinitions={"PVScenarioOptions","PVSearchRange","NumericalWorkingPrecision","DynamicMaxSteps","WobbleRestoringModel"};
+  <|"FixedUserConfirmedArchitecture"-><|"PoleCount"->2|>,
+    "UserApprovedAssumptionDefaultsPresent"->True,
+    "ApprovedAssumptionCount"->assumptions["ApprovedAssumptionCount"],
+    "ApprovedAssumptionRegister"->assumptions,
+    "ProjectSpecificDefaultsAreAssumptionsNotMeasurements"->True,
+    "UnapprovedAssistantGeneratedEngineeringDefaultsPresent"->False,
     "PublishedReferenceConstantDefaults"->referenceConstants,
     "SolarIrradianceReferenceClassification"->"IAU nominal solar irradiance conversion constant at 1 au; not an instantaneous operating value.",
     "StandardizedPVReferenceConditionDefaults"->standardPVReferences,
     "MathematicalOrSoftwareDefinitionsNotProjectDefaults"->softwareDefinitions,
-    "RequiredArchitectureInputs"->{"ICARUSStationCount","ICARUSStationCountScope"},
-    "RequiredSharedDesignMaterialModelFormChoices"->{"GeometryProfileModel","MassDistributionModel","PVLayoutModel","ICARUSLoadTransferModel","MembraneStructuralModel","WobbleRestoringModel","ReflectionModel"},
-    "RequiredPoleSpecificEnvironmentModelFormChoices"->{"FlareTemporalProfile","CMETemporalProfile"},
-    "RequiredPoleSpecificControllerSettings"->{"ControllerTranslationKp_perS2","ControllerTranslationKd_perS","ControllerAttitudeKp_perS2","ControllerAttitudeKd_perS"},
-    "AllOtherProjectAndNumericalInputsRequiredFromUser"->projectKeys,
-    "RequiredPoleOperatingInputsPerPole"->$Phase1PoleOperatingKeys,
-    "RequiredPoleOperatingInputCountPerPole"->Length[$Phase1PoleOperatingKeys],
-    "SharedInputRegisterKeyCount"->Length[Keys[$Phase1DefaultInputs]],
-    "RequiredSharedProjectInputCount"->Length[requiredSharedProjectKeys],
-    "InputRequirementGroups"->Keys[$Phase1InputCategories],
-    "AllProjectSpecificInputsRequireProvenance"->False,
-    "ProvenanceIsNotAReadinessCondition"->True,
-    "AllProjectSpecificInputsRequireExplicitValues"->True,
-    "SourceNotesOptionalAndNonBlocking"->True,
-    "AssistantGeneratedEngineeringDefaultsPresent"->False,
-    "InitialPositionVelocityAndAttitudeAreRequiredInputs"->True,
-    "NoPublishedDeviceMassOrSpecificPowerIsHardcoded"->True,
-    "NoMaterialOrActuatorCapacityIsHardcoded"->True,
-    "NoCanopyAreaPerimeterOrProfileIsHardcoded"->True|>
+    "UnresolvedActuatorCapacity"->"Automatic / unknown; demand-only force/torque calculation. No ICARUS capacity or hardware qualification is inferred.",
+    "DerivedPerPoleValues"->{"ICARUSStationPositionsLocal_m","SEPDose_protons_cm2","DerivedNaturalTorqueTolerance_Nm","StableNaturalPeriods_s","UnstableGrowthRates_s"},
+    "InitialPositionVelocityAndAttitude"->"User-approved nominal zero-state assumptions are stored separately in each pole register.",
+    "GeometryStatus"->"User-approved spherical-cap/area geometry assumptions; replace with CAD-derived geometry or an imported measured mesh when available.",
+    "MaterialStatus"->"Approved screening assumptions; material properties and long-duration performance remain unqualified.",
+    "NoTwoPoleOperationalCoupling"->True|>
 ];
 
 phase1Audit[action_String,details_] := Module[{entry},
@@ -494,27 +744,6 @@ phase1Audit[action_String,details_] := Module[{entry},
   entry
 ];
 
-Phase1SetInputs[updates_Association] := Phase1SetInputs[updates,<||>];
-Phase1SetInputs[updates_Association,notes_Association] := Module[
-  {current,unknown,unknownNotes,badNotes,oldNotes,staleNotes,newNotes},
-  current=$Phase1State["Inputs"];
-  unknown=Complement[Keys[updates],Keys[current]];
-  unknownNotes=Complement[Keys[notes],Keys[current]];
-  badNotes=Select[Keys[notes],!StringQ[notes[#]] || StringTrim[notes[#]]==="" &];
-  If[unknown =!= {},Return[Failure["UnknownInputKeys",<|"Keys"->unknown|>]]];
-  If[unknownNotes =!= {},Return[Failure["UnknownInputNoteKeys",<|"Keys"->unknownNotes|>]]];
-  If[badNotes =!= {},Return[Failure["InvalidOptionalSourceNotes",<|"Keys"->badNotes|>]]];
-  oldNotes=Lookup[$Phase1State,"InputNotes",<||>];
-  staleNotes=Select[Keys[updates],!SameQ[Lookup[updates,#],Lookup[current,#]] && !KeyExistsQ[notes,#]&];
-  newNotes=Join[KeyDrop[oldNotes,staleNotes],notes];
-  current=Join[current,updates];
-  $Phase1State=Join[$Phase1State,<|"Inputs"->current,
-    "InputNotes"->newNotes,"Derived"-><||>,"Results"-><||>,"LastRun"->Missing["InputsChanged"]|>];
-  phase1Audit["InputsUpdated",<|"ChangedKeys"->Keys[updates],"OptionalSourceNotesUpdated"->Keys[notes],
-    "OptionalSourceNotesRemovedForChangedValues"->staleNotes|>];
-  current
-];
-Phase1SetInputProvenance[notes_Association] := Phase1SetInputs[<||>,notes];
 
 
 (* The legacy single-system reset/save definitions are intentionally omitted.
@@ -525,10 +754,11 @@ Phase1SetInputProvenance[notes_Association] := Phase1SetInputs[<||>,notes];
    2. PURE MODEL FUNCTIONS — all receive the central input snapshot explicitly
    ======================================================================== *)
 
-phase1InstalledPVArealMass[in_Association] := If[
-  in["PrimaryPVScenario"] === "MITIntegratedFabricSpecificPowerLimited",
-  in["PVIntegratedFabricArealMass_kg_m2"],
-  in["PVArealMass_kg_m2"]
+phase1InstalledPVArealMass[in_Association] := in["PVArealMass_kg_m2"];
+
+phase1EffectiveSubstrateArealMass[in_Association] := Module[{treatment},
+  treatment=phase1SubstrateMassTreatment[in];
+  If[FailureQ[treatment],treatment,treatment["EffectiveArealMass_kg_m2"]]
 ];
 
 phase1Geometry[in_Association] := Module[
@@ -551,7 +781,7 @@ phase1Geometry[in_Association] := Module[
     "GeneratingSphereRadius_m"->sphereRadius,
     "CurvedToProjectedAreaRatio"->curvedArea/poleProjectedArea,
     "GeometryModel"->in["GeometryProfileModel"],
-    "GeometryModelQualification"->"Explicitly selected spherical-cap surrogate. The model form is not inferred from data; replace phase1Geometry/phase1Mesh with CAD/profile-derived mesh when a surveyed design surface is available.",
+    "GeometryModelQualification"->"Explicitly selected user-approved spherical-cap geometry assumption in the reduced-order calculation; it is not inferred from CAD or measurement. Replace phase1Geometry/phase1Mesh with a CAD/profile-derived or imported measured surface when available.",
     "CalculationScope"->"All calculations are performed for the active pole alone, in that pole's independent local coordinate frame. The local +x axis is the Sun-radial coordinate convention; no global inter-pole orientation or coupling is assumed."
   |>
 ];
@@ -663,14 +893,17 @@ phase1Radiation[in_Association,geo_Association,mesh_Association,optics_Associati
 ];
 
 phase1Mass[in_Association,geo_Association,rad_Association,f_,r_] := Module[
-  {ratio,curvedArea,projectedArea,pvMass,reflectMass,substrateMass,referenceSubstrateMass,wireMass,otherMass,deferredMass,perimeterMass,stationMass,sheetMass,totalMass,sigma,flux,mu,c,gravity,radAcceleration,accVector,sigmaEq,margin,relativeResidual,integratedPVReplacesSubstrate,wind,radialDirection},
+  {ratio,curvedArea,projectedArea,pvMass,reflectMass,substrateMass,referenceSubstrateMass,effectiveSubstrateMassOnReflectorArea,substrateTreatment,wireMass,otherMass,deferredMass,perimeterMass,stationMass,sheetMass,totalMass,sigma,flux,mu,c,gravity,radAcceleration,accVector,sigmaEq,margin,relativeResidual,integratedPVReplacesSubstrate,wind,radialDirection,forceScale,accelerationTolerance,characteristicRadius,torqueTolerance},
   ratio=geo["CurvedToProjectedAreaRatio"];
   curvedArea=geo["GrossCurvedAreaPerPole_m2"];projectedArea=geo["GrossProjectedAreaPerPole_m2"];
   pvMass=f curvedArea phase1InstalledPVArealMass[in];
   reflectMass=(1.-f) curvedArea in["ReflectorArealMass_kg_m2"];
-  integratedPVReplacesSubstrate=TrueQ[in["PVIntegratedMassIncludesStructuralFabric"] && in["PrimaryPVScenario"]==="MITIntegratedFabricSpecificPowerLimited"];
-  substrateMass=curvedArea If[integratedPVReplacesSubstrate,1.-f,1.] in["MembraneSubstrateArealMass_kg_m2"];
-  referenceSubstrateMass=curvedArea (1.-f) in["MembraneSubstrateArealMass_kg_m2"];
+  integratedPVReplacesSubstrate=TrueQ[in["PVCellArrayMassPolicy"] && in["PrimaryPVScenario"]==="PVCellArraySpecificPowerLimited"];
+  substrateTreatment=phase1SubstrateMassTreatment[in];
+  If[FailureQ[substrateTreatment],Return[substrateTreatment]];
+  substrateMass=curvedArea If[integratedPVReplacesSubstrate,1.-f,1.] substrateTreatment["EffectiveArealMass_kg_m2"];
+  referenceSubstrateMass=curvedArea (1.-f) substrateTreatment["ReferenceArealMass_kg_m2"];
+  effectiveSubstrateMassOnReflectorArea=curvedArea (1.-f) substrateTreatment["EffectiveArealMass_kg_m2"];
   wireMass=curvedArea in["WiringArealMass_kg_m2"];
   otherMass=curvedArea in["OtherInstalledArealMass_kg_m2"];
   deferredMass=in["DeferredEquipmentMass_kg"];
@@ -686,6 +919,10 @@ phase1Mass[in_Association,geo_Association,rad_Association,f_,r_] := Module[
   radAcceleration=rad["NetRadiationForceVector_N"]/totalMass;
   wind=phase1SolarWindLoads[in,rad["PatchLoads"],r,radialDirection];
   accVector=radAcceleration+wind["TotalForce_N"]/totalMass-gravity radialDirection;
+  forceScale=Max[Norm[rad["NetRadiationForceVector_N"]],Norm[wind["TotalForce_N"]],totalMass gravity,$MinMachineNumber];
+  accelerationTolerance=in["ExactEquilibriumRelativeTolerance"] forceScale/totalMass;
+  characteristicRadius=Sqrt[projectedArea/Pi];
+  torqueTolerance=in["ExactEquilibriumRelativeTolerance"] forceScale characteristicRadius;
   sigmaEq=rad["NumericalMomentumCoefficientRadial"] in["SolarLuminosity_W"]/(4. Pi c mu)+Dot[wind["TotalForce_N"],radialDirection] r^2/(projectedArea mu);
   margin=sigmaEq-sigma;
   relativeResidual=(sigma-sigmaEq)/sigmaEq;
@@ -694,16 +931,23 @@ phase1Mass[in_Association,geo_Association,rad_Association,f_,r_] := Module[
     "MembraneSubstrateMass_kg"->substrateMass,"PerimeterHardwareMass_kg"->perimeterMass,
     "PerimeterHardwareLinearMass_kg_m"->in["PerimeterHardwareLinearMass_kg_m"],
     "PerimeterMassModel"->"User-selected linear mass distributed uniformly around the computed planform perimeter; perimeter point masses are included in centre-of-mass, inertia and distributed-gravity calculations.",
-    "PVIntegratedFabricReplacesSubstrate"->integratedPVReplacesSubstrate,
+    "PVIntegratedCellArrayReplacesSubstrate"->integratedPVReplacesSubstrate,
     "ReferenceSubstrateMassOnReflectorArea_kg"->referenceSubstrateMass,
-    "WiringMass_kg"->wireMass,"OtherInstalledArealMass_kg"->otherMass,"DeferredEquipmentMass_kg"->deferredMass,
+    "EffectiveSubstrateMassOnReflectorArea_kg"->effectiveSubstrateMassOnReflectorArea,
+    "WiringMass_kg"->wireMass,"WiringGridStructuralReinforcementModelled"->False,"OtherInstalledArealMass_kg"->otherMass,"DeferredEquipmentMass_kg"->deferredMass,
     "SheetMass_kg"->sheetMass,"StationMassTotal_kg"->stationMass,
     "MassLedgerComponentSum_kg"->pvMass+reflectMass+substrateMass+wireMass+otherMass+perimeterMass+stationMass+deferredMass,
     "MassLedgerResidual_kg"->totalMass-(pvMass+reflectMass+substrateMass+wireMass+otherMass+perimeterMass+stationMass+deferredMass),
     "MassLedgerCloses"->TrueQ[Abs[totalMass-(pvMass+reflectMass+substrateMass+wireMass+otherMass+perimeterMass+stationMass+deferredMass)]<=in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[totalMass]]],
     "TotalMass_kg"->totalMass,"TotalTwoPoleMass_kg"->Missing["AggregateFromIndependentPoleMassResults"],
     "InstalledPVArealMass_kg_m2"->phase1InstalledPVArealMass[in],
-    "MembraneSubstrateArealMass_kg_m2"->in["MembraneSubstrateArealMass_kg_m2"],
+    "MembraneSubstrateMaterialClass"->substrateTreatment["MaterialClass"],
+    "MembraneSubstrateReferenceArealMass_kg_m2"->substrateTreatment["ReferenceArealMass_kg_m2"],
+    "MembraneSubstrateReductionFactor"->substrateTreatment["ReductionFactor"],
+    "MembraneSubstrateArealMass_kg_m2"->substrateTreatment["EffectiveArealMass_kg_m2"],
+    "DyneemaSubstrateReductionApplied"->substrateTreatment["ReductionApplied"],
+    "SubstrateMassTreatment"->substrateTreatment["Treatment"],
+    "SubstrateMassInputIsUnchangedReferenceValue"->True,
     "ReflectorCoatingArealMass_kg_m2"->in["ReflectorArealMass_kg_m2"],
     "StationMassCountedOnce"->TrueQ[Abs[stationMass-in["ICARUSStationCount"] in["ICARUSStationMass_kg"]]<=in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[stationMass]]],
     "TotalArealMass_kg_m2"->sigma,"EquilibriumArealMass_kg_m2"->sigmaEq,
@@ -714,11 +958,13 @@ phase1Mass[in_Association,geo_Association,rad_Association,f_,r_] := Module[
     "NetNaturalAccelerationVector_m_s2"->accVector,
     "NetRadialAcceleration_m_s2"->accVector[[1]],
     "NaturalForceResidualMagnitude_m_s2"->Norm[accVector],
-    "ExactVectorEquilibrium"->TrueQ[Norm[accVector]<=in["ExactEquilibriumAccelerationTolerance_m_s2"]],
+    "ExactVectorEquilibrium"->TrueQ[Norm[accVector]<=accelerationTolerance],
+    "DerivedNaturalAccelerationTolerance_m_s2"->accelerationTolerance,
+    "DerivedNaturalTorqueTolerance_Nm"->torqueTolerance,
     "ExactMassBalanceWithinTolerance"->TrueQ[Abs[relativeResidual]<=in["ExactEquilibriumRelativeTolerance"]],
     "RadiationAccelerationVector_m_s2"->radAcceleration,
     "SolarGravityAcceleration_m_s2"->gravity,
-    "Interpretation"->Which[Norm[accVector]<=in["ExactEquilibriumAccelerationTolerance_m_s2"],"Natural vector equilibrium within numerical tolerance",accVector[[1]]>0.,"Outward/radiation-dominant residual; NOT equilibrium",True,"Inward/gravity-dominant or transverse residual; NOT equilibrium"]|>
+    "Interpretation"->Which[Norm[accVector]<=accelerationTolerance,"Natural vector equilibrium within numerical tolerance",accVector[[1]]>0.,"Outward/radiation-dominant residual; NOT equilibrium",True,"Inward/gravity-dominant or transverse residual; NOT equilibrium"]|>
 ];
 
 phase1Thermal[in_Association,geo_Association,rad_Association,r_,limit_,coverage_:Automatic,electricalOutputW_:0.] := Module[
@@ -754,56 +1000,61 @@ phase1Thermal[in_Association,geo_Association,rad_Association,r_,limit_,coverage_
 ];
 
 phase1PV[in_Association,geo_Association,rad_Association,thermal_Association,f_,years_] := Module[
-  {pvArea,pvMass,freeStandingMass,integratedMass,installedArealMass,incident,meanIrradiance,specificPowerIrradianceFactor,
-   degAnnual,degSEP,degPV,effTemp,mitEff,projectEff,projectEffTemp,spCap,integratedCap,outputs,selected,sel,capApplicable,capPass,integratedEff},
+  {pvArea,pvMass,installedArealMass,incident,meanIrradiance,specificPowerIrradianceFactor,
+   degAnnual,degSEP,degPV,effTemp,cellReferenceEff,projectEffTemp,spCap,grossOutputs,outputs,
+   selected,grossSel,sel,capApplicable,capPass,electrical,designOutput,electricalScale,
+   scenarioElectricalLosses,selectedElectricalLoss},
   If[in["PVLayoutModel"] =!= "UniformSurfaceCoverage",
     Return[Failure["UnsupportedPVLayoutModel",<|"SelectedModel"->in["PVLayoutModel"]|>]]];
   pvArea=f geo["GrossCurvedAreaPerPole_m2"];
   installedArealMass=phase1InstalledPVArealMass[in];
   pvMass=pvArea installedArealMass;
-  freeStandingMass=pvArea in["PVArealMass_kg_m2"];
   incident=rad["PVIncidentPower_W"];
   meanIrradiance=If[pvArea>0.,incident/pvArea,0.];
   specificPowerIrradianceFactor=If[pvArea>0.,meanIrradiance/in["PVSpecificPowerReferenceIrradiance_W_m2"],0.];
   degAnnual=(1.-in["PVAnnualDegradationFraction"])^years;
   degSEP=Clip[1.-in["PVDegradationPerSEPReferenceDoseFraction"] in["SEPDose_protons_cm2"]/in["SEPDoseReference_protons_cm2"],{0.,1.}];
   degPV=degAnnual degSEP;
-  effTemp=Clip[in["MITEfficiencyReference"] (1.+in["PVEfficiencyTemperatureCoefficient_perK"] (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
-  mitEff=incident effTemp degPV;
-  integratedEff=Clip[in["PVIntegratedEfficiencyReference"] (1.+in["PVEfficiencyTemperatureCoefficient_perK"] (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
+  effTemp=Clip[in["PVCellReferenceEfficiency"] (1.+in["PVEfficiencyTemperatureCoefficient_perK"] (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
+  cellReferenceEff=incident effTemp degPV;
   projectEffTemp=Clip[in["ProjectTargetEfficiency"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
     (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
-  projectEff=incident projectEffTemp degPV;
-  spCap=freeStandingMass in["PVFreeStandingSpecificPower_W_kg"] specificPowerIrradianceFactor degPV;
-  integratedMass=pvArea in["PVIntegratedFabricArealMass_kg_m2"];
-  integratedCap=integratedMass in["PVIntegratedSpecificPower_W_kg"] specificPowerIrradianceFactor degPV;
-  outputs=<|"MITSpecificPowerLimited"->Min[spCap,mitEff],
-    "MITIntegratedFabricSpecificPowerLimited"->Min[integratedCap,incident integratedEff degPV],
-    "MITEfficiencyReference"->mitEff,"ProjectSpecifiedTargetEfficiency"->projectEff|>;
+  spCap=pvMass in["PVCellArraySpecificPower_W_kg"] specificPowerIrradianceFactor degPV;
+  grossOutputs=<|"PVCellArraySpecificPowerLimited"->Min[spCap,cellReferenceEff],
+    "PVCellReferenceEfficiency"->cellReferenceEff,
+    "ProjectSpecifiedTargetEfficiency"->incident projectEffTemp degPV|>;
   selected=in["PrimaryPVScenario"];
+  grossSel=Lookup[grossOutputs,selected,Missing["UnknownPVScenario",selected]];
+  electrical=phase1ElectricalNetwork[in,geo,rad,f];
+  If[FailureQ[electrical],Return[electrical]];
+  designOutput=electrical["ElectricalDesignOutput_W"];
+  scenarioElectricalLosses=AssociationMap[Function[power,
+    If[NumericQ[power]&&designOutput>0.,electrical["TotalElectricalLoss_W"] (power/designOutput)^2,0.]],grossOutputs];
+  outputs=AssociationMap[Function[name,Max[0.,grossOutputs[name]-scenarioElectricalLosses[name]]],Keys[grossOutputs]];
   sel=Lookup[outputs,selected,Missing["UnknownPVScenario",selected]];
-  capApplicable=MemberQ[{"MITSpecificPowerLimited","MITIntegratedFabricSpecificPowerLimited"},selected];
-  capPass=If[selected==="MITIntegratedFabricSpecificPowerLimited",
-    TrueQ[NumericQ[sel] && sel<=integratedCap+Sqrt[$MachineEpsilon]],
-    If[selected==="MITSpecificPowerLimited",TrueQ[NumericQ[sel] && sel<=spCap+Sqrt[$MachineEpsilon]],True]
-  ];
+  selectedElectricalLoss=Lookup[scenarioElectricalLosses,selected,Missing["UnknownPVScenario",selected]];
+  electricalScale=If[NumericQ[grossSel]&&designOutput>0.,grossSel/designOutput,0.];
+  capApplicable=TrueQ[selected==="PVCellArraySpecificPowerLimited"];
+  capPass=If[capApplicable,TrueQ[NumericQ[grossSel]&&grossSel<=spCap+Sqrt[$MachineEpsilon]],True];
   <|"PVInstalledCurvedArea_m2"->pvArea,"PVDeviceMass_kg"->pvMass,
-    "MITFreeStandingDeviceMass_kg"->freeStandingMass,
-    "InstalledPVArealMass_kg_m2"->installedArealMass,
+    "PVCellArrayDeviceMass_kg"->pvMass,"InstalledPVArealMass_kg_m2"->installedArealMass,
     "IncidentPVPower_W"->incident,"MeanIncidentPVIrradiance_W_m2"->meanIrradiance,
     "SpecificPowerReferenceIrradiance_W_m2"->in["PVSpecificPowerReferenceIrradiance_W_m2"],
     "SpecificPowerIrradianceScalingFactor"->specificPowerIrradianceFactor,
-    "EffectiveMITReferenceEfficiency"->effTemp,"EffectiveIntegratedPVReferenceEfficiency"->integratedEff,
-    "EffectiveProjectTargetEfficiency"->projectEffTemp,
+    "EffectivemitReferenceEfficiency"->effTemp,"EffectiveProjectTargetEfficiency"->projectEffTemp,
     "AnnualPVDegradationFactor"->degAnnual,"SEPDegradationFactor"->degSEP,
     "TotalPVDegradationFactor"->degPV,
-    "MITSpecificPowerCeiling_W"->spCap,"MITIntegratedSpecificPowerCeiling_W"->integratedCap,
-    "MITIntegratedFabricDeviceMass_kg"->integratedMass,"ScenarioDCOutputs_W"->outputs,
-    "SelectedScenario"->selected,"SelectedDCOutput_W"->sel,
+    "PVCellArraySpecificPowerCeiling_W"->spCap,
+    "ScenarioGrossDCOutputs_W"->grossOutputs,"ScenarioElectricalLosses_W"->scenarioElectricalLosses,
+    "ScenarioDCOutputs_W"->outputs,"ElectricalNetwork"->electrical,
+    "ElectricalLossAtSelectedOperatingPoint_W"->selectedElectricalLoss,
+    "ElectricalDesignOutput_W"->designOutput,"ElectricalDesignPowerScalingFactor"->electricalScale,
+    "SelectedScenario"->selected,"SelectedGrossDCOutput_W"->grossSel,"SelectedDCOutput_W"->sel,
     "SpecificPowerCapApplicable"->capApplicable,
-    "PVOutputDoesNotExceedAbsorbedPower"->TrueQ[NumericQ[sel] && sel<=rad["PVAbsorbedPower_W"]+Sqrt[$MachineEpsilon] Max[Sqrt[$MinMachineNumber],Abs[rad["PVAbsorbedPower_W"]]]],
+    "PVOutputDoesNotExceedAbsorbedPower"->TrueQ[NumericQ[sel]&&sel<=rad["PVAbsorbedPower_W"]+Sqrt[$MachineEpsilon] Max[Sqrt[$MinMachineNumber],Abs[rad["PVAbsorbedPower_W"]]]],
     "PVOutputDoesNotExceedSpecificPower"->capPass,
-    "MassPowerReconciliation"->"Each selected technology uses its own central-register device areal mass, specific power and efficiency reference. Mathematica independently evaluates the specific-power and efficiency ceilings, applies irradiance and degradation, and selects the lower bound for the chosen scenario."|>
+    "PVOutputIncludesHierarchicalInterconnectLosses"->True,
+    "MassPowerReconciliation"->"PV device mass is represented by the cell-array areal mass. Copper tabs/solder, aluminum series jumpers, sector bus conductors and structural ribs are separate bottom-up mass components. Each PV scenario debits I^2 R losses from the hierarchical interconnect network."|>
 ];
 
 phase1CoupledPVThermal[in_Association, geo_Association, mesh_Association, optics_Association,
@@ -889,7 +1140,7 @@ phase1Structural[in_Association,geo_Association,rad_Association,coverage_:Automa
     {rad["PatchLoads"],windForces}];
   pressure=Max[patchPressures];
   tension=in["MembranePretension_N_m"];
-  arealMass=in["MembraneSubstrateArealMass_kg_m2"];
+  arealMass=phase1EffectiveSubstrateArealMass[in];
   density=in["MembraneMaterialDensity_kg_m3"];
   thickness=arealMass/density;
   stress=If[thickness>0.,tension/thickness,Infinity];
@@ -900,13 +1151,16 @@ phase1Structural[in_Association,geo_Association,rad_Association,coverage_:Automa
   requiredTension=pressure a/(in["CircularMembraneDeflectionCoefficient"] in["MaximumDeflectionFractionOfRadius"]);
   allowableTension=allowableStress thickness;
   pass=TrueQ[ratio<=in["MaximumDeflectionFractionOfRadius"] && stress<=allowableStress && requiredTension<=allowableTension &&
-    !(in["PrimaryPVScenario"]==="MITIntegratedFabricSpecificPowerLimited" &&
-      TrueQ[in["PVIntegratedMassIncludesStructuralFabric"]] && f>0.)];
+    !(in["PrimaryPVScenario"]==="PVCellArraySpecificPowerLimited" &&
+      TrueQ[in["PVCellArrayMassPolicy"]] && f>0.)];
   <|"AppliedPeakLocalNormalRadiationAndSolarWindPressure_Pa"->pressure,
     "SolarWindIncludedInStaticStructuralLoad"->True,
     "BaselineSolarWindPressure_Pa"->wind["DynamicPressure_Pa"],
     "PatchPressureRange_Pa"->{Min[patchPressures],Max[patchPressures]},
     "StructuralSubstrateArealMass_kg_m2"->arealMass,
+    "WiringArealMass_kg_m2"->in["WiringArealMass_kg_m2"],
+    "WiringGridStructuralReinforcementCredited"->False,
+    "WiringStructuralTreatment"->"Wiring contributes mass only; no stiffness, strength, joint, or load-transfer reinforcement credit is applied by this substrate-only structural screen.",
     "PlanformSpan_m"->a,"AssumedMembranePretension_N_m"->tension,
     "EquivalentMembraneThickness_m"->thickness,
     "EstimatedMembraneTensileStress_Pa"->stress,"EstimatedMembraneElasticStrain"->strain,
@@ -920,8 +1174,8 @@ phase1Structural[in_Association,geo_Association,rad_Association,coverage_:Automa
     "TensileStressMargin_Pa"->allowableStress-stress,
     "PretensionCapacityMargin_N_m"->allowableTension-requiredTension,
     "StructuralScreenPass"->pass,
-    "IntegratedPVStructuralQualification"->If[in["PrimaryPVScenario"]==="MITIntegratedFabricSpecificPowerLimited" && TrueQ[in["PVIntegratedMassIncludesStructuralFabric"]] && f>0.,
-      "Not qualified: the integrated PV fabric replaces the base membrane substrate under covered area, but a mixed-laminate constitutive model is not supplied.",
+    "IntegratedPVStructuralQualification"->If[in["PrimaryPVScenario"]==="PVCellArraySpecificPowerLimited" && TrueQ[in["PVCellArrayMassPolicy"]] && f>0.,
+      "Not qualified: the integrated PV cell array replaces the base membrane substrate under covered area, but a mixed-laminate constitutive model is not supplied.",
       "First-order uniform tensioned-membrane screen only; not nonlinear membrane FEA."],
     "StructuralScreenModel"->in["MembraneStructuralModel"],
     "StructuralScreenQualification"->"Tensioned circular membrane one-span formula w_max≈p a^2/(C T), driven by patch-resolved normal radiation plus baseline solar-wind traction. Material density, modulus, strength, areal mass and pretension must be supplied from project data. Uniform effective tension and equivalent thickness remain first-order approximations, not nonlinear membrane FEA."|>
@@ -944,7 +1198,7 @@ phase1StructuralDistanceFloor[in_Association,geo_Association,mesh_Association,op
   windPressureCoefficient=in["SolarWindProtonDensity_1AU_cm3"] in["CentimetersPerMeter"]^3 in["ProtonMass_kg"] in["SolarWindSpeed_1AU_m_s"]^2 in["AstronomicalUnit_m"]^2 maxWindCos;
   pressureCoefficient=pressureCoefficient+windPressureCoefficient;
   a=geo["PlanformEquivalentRadius_m"];
-  thickness=in["MembraneSubstrateArealMass_kg_m2"]/in["MembraneMaterialDensity_kg_m3"];
+  thickness=phase1EffectiveSubstrateArealMass[in]/in["MembraneMaterialDensity_kg_m3"];
   allowableStress=in["MembraneEffectiveUltimateStrength_Pa"]/in["StructuralSafetyFactor"];
   allowableTension=allowableStress thickness;
   pretensionStress=in["MembranePretension_N_m"]/thickness;
@@ -953,8 +1207,8 @@ phase1StructuralDistanceFloor[in_Association,geo_Association,mesh_Association,op
     in["CircularMembraneDeflectionCoefficient"] in["MaximumDeflectionFractionOfRadius"] allowableTension/a
   ];
   minimumDistance=If[pretensionStress>allowableStress || pressureLimit<=0. || pressureCoefficient<0. ||
-      (in["PrimaryPVScenario"]==="MITIntegratedFabricSpecificPowerLimited" &&
-       TrueQ[in["PVIntegratedMassIncludesStructuralFabric"]] && pvFraction>0.),Infinity,
+      (in["PrimaryPVScenario"]==="PVCellArraySpecificPowerLimited" &&
+       TrueQ[in["PVCellArrayMassPolicy"]] && pvFraction>0.),Infinity,
     Sqrt[pressureCoefficient/pressureLimit]];
   <|"MinimumStructuralDistance_m"->minimumDistance,
     "PeakNormalCosine"->maxCos,"PeakSolarWindNormalCosine"->maxWindCos,
@@ -1034,18 +1288,78 @@ phase1WrenchMatrix[stations_List] := Module[{blocks,skew},
   ArrayFlatten[{blocks}]
 ];
 
+(* Apply a station-force capacity without allowing Automatic to enter a numeric
+   comparison. Automatic means the hardware rating is unknown: preserve the
+   calculated demand for sizing/diagnostics, but explicitly leave qualification
+   false. Infinity is a deliberate idealized unbounded-capacity mode, also not
+   hardware qualification. Only a finite positive rating can qualify capacity. *)
+phase1ApplyStationCapacity[forces_List,capacity_] := Module[
+  {applied,saturated,mode,forceCapacitySpecified},
+  If[!And@@(VectorQ[#,NumericQ]&&Length[#]==3&/@forces),
+    Return[Failure["InvalidStationForceVectors",<|"Forces"->forces|>]]
+  ];
+  Which[
+    capacity===Automatic,
+      applied=forces;mode="UnknownCapacity_UnclippedDemand";forceCapacitySpecified=False,
+    capacity===Infinity,
+      applied=forces;mode="IdealizedUnboundedCapacity";forceCapacitySpecified=False,
+    NumericQ[capacity]&&TrueQ[0.<capacity<Infinity],
+      applied=Map[If[Norm[#]>capacity,capacity Normalize[#],#]&,forces];
+      mode="ExplicitFinitePerStationLimit";forceCapacitySpecified=True,
+    True,
+      Return[Failure["InvalidStationForceCapacity",<|"CapacityPerStation_N"->capacity|>]]
+  ];
+  saturated=MapThread[Norm[#1-#2]>0.&,{forces,applied}];
+  <|"AppliedStationForces_N"->applied,"SaturationByStation"->saturated,
+    "CapacityPerStation_N"->capacity,"CapacityMode"->mode,
+    "ForceCapacitySpecified"->forceCapacitySpecified,
+    "HardwareQualified"->False,
+    "HardwareQualificationBlockers"->{"No complete actuator torque/stroke/bandwidth/power rating set or qualification evidence is represented by the Phase 1 model."},
+    "UnconstrainedDemandPreserved"->(capacity===Automatic||capacity===Infinity)|>
+];
+
 phase1Controller[dyn_Association,wrench_,capacity_] := Module[
-  {w,raw,blocks,clipped,saturated,achieved},
+  {w,raw,blocks,capacityResult,clipped,saturated,achieved},
   w=Lookup[dyn,"WrenchMatrix",phase1WrenchMatrix[dyn["StationPositionsLocal_m"]]];
   raw=PseudoInverse[w].wrench;
   blocks=Partition[raw,3];
-  clipped=If[NumericQ[capacity],Map[If[Norm[#]>capacity,capacity Normalize[#],#]&,blocks],blocks];
-  saturated=MapThread[Norm[#1-#2]>0.&,{blocks,clipped}];
+  capacityResult=phase1ApplyStationCapacity[blocks,capacity];
+  If[FailureQ[capacityResult],Return[capacityResult]];
+  clipped=capacityResult["AppliedStationForces_N"];
+  saturated=capacityResult["SaturationByStation"];
   achieved=w.Flatten[clipped];
   <|"DesiredWrench"->wrench,"UnconstrainedStationForces_N"->blocks,
     "StationForces_N"->clipped,"AchievedWrench"->achieved,
     "SaturationByStation"->saturated,"CapacityPerStation_N"->capacity,
-    "CapacityQualified"->NumericQ[capacity],"WrenchMatrix"->w|>
+    "ForceCapacitySpecified"->capacityResult["ForceCapacitySpecified"],
+    "HardwareQualified"->False,
+    "CapacityMode"->capacityResult["CapacityMode"],"WrenchMatrix"->w|>
+];
+
+(* Per-station force and moment demand are resolved independently at every
+   sample. The moment is each station's r x F contribution about the pole COM;
+   it is not an actuator torque-rating comparison. *)
+phase1StationDemandSummary[stationPositions_List,forceSamples_List] := Module[
+  {stationCount,forceMagnitudes,torqueMagnitudes},
+  stationCount=Length[stationPositions];
+  If[stationCount<1 || !And@@(Function[pos,ListQ[pos]&&Length[pos]===3&&VectorQ[pos,NumericQ]]/@stationPositions),
+    Return[Failure["InvalidStationPositionsForDemandSummary",<|"StationPositions"->stationPositions|>]]
+  ];
+  If[!ListQ[forceSamples] || forceSamples==={} ||
+      !And@@(Function[sample,ListQ[sample]&&Length[sample]===stationCount&&
+        And@@(Function[v,ListQ[v]&&Length[v]===3&&VectorQ[v,NumericQ]]/@sample)]/@forceSamples),
+    Return[Failure["InvalidStationForceSamplesForDemandSummary",<|"StationCount"->stationCount,"ForceSamples"->forceSamples|>]]
+  ];
+  forceMagnitudes=Map[Norm,forceSamples,{2}];
+  torqueMagnitudes=Table[Norm[Cross[stationPositions[[j]],forceSamples[[i,j]]]],
+    {i,Length[forceSamples]},{j,stationCount}];
+  <|"StationForceMagnitudesBySample_N"->forceMagnitudes,
+    "StationTorqueMagnitudesBySample_Nm"->torqueMagnitudes,
+    "MaximumStationForceByStation_N"->(Max/@Transpose[forceMagnitudes]),
+    "MaximumStationTorqueByStation_Nm"->(Max/@Transpose[torqueMagnitudes]),
+    "MaximumStationForce_N"->Max[Flatten[forceMagnitudes]],
+    "MaximumStationTorque_Nm"->Max[Flatten[torqueMagnitudes]],
+    "TorqueMeaning"->"Moment contribution of each station force about the assembly centre of mass, calculated as r x F. This is required demand, not an actuator torque rating."|>
 ];
 
 phase1LoadMap[in_Association,geo_Association,mesh_Association,dyn_Association,stationForces_List] := Module[
@@ -1162,7 +1476,7 @@ phase1SolarWindLoads[in_Association,patches_List,r_?NumericQ,radialDirection_Lis
 ];
 
 phase1NaturalEquilibrium[in_Association,rad_Association,mass_Association,dyn_Association] := Module[
-  {center,q,gravity,wind,netForce,netTorque,acc,forceResidual,torqueResidual,forcePass,torquePass},
+  {center,q,gravity,wind,netForce,netTorque,acc,forceResidual,torqueResidual,forcePass,torquePass,forceScale,characteristicRadius,accelerationTolerance,torqueTolerance},
   center={in["Distance_m"],0.,0.};q=dyn["InitialQuaternion"];
   gravity=phase1GravityLoads[in,dyn,center,q];
   wind=phase1SolarWindLoads[in,rad["PatchLoads"],in["Distance_m"],Normalize[center]];
@@ -1170,23 +1484,32 @@ phase1NaturalEquilibrium[in_Association,rad_Association,mass_Association,dyn_Ass
   netTorque=rad["NetRadiationMoment_Nm"]+gravity["TotalGravityTorqueInertial_Nm"]+wind["TotalTorqueAboutCOM_Nm"];
   acc=netForce/mass["TotalMass_kg"];
   forceResidual=Norm[acc];torqueResidual=Norm[netTorque];
-  forcePass=TrueQ[forceResidual<=in["ExactEquilibriumAccelerationTolerance_m_s2"]];
-  torquePass=TrueQ[torqueResidual<=in["ExactEquilibriumTorqueTolerance_Nm"]];
+  forceScale=Max[Norm[rad["NetRadiationForceVector_N"]],Norm[gravity["TotalGravityForce_N"]],Norm[wind["TotalForce_N"]],mass["TotalMass_kg"] in["SolarGravitationalParameter_m3_s2"]/in["Distance_m"]^2,$MinMachineNumber];
+  characteristicRadius=Sqrt[in["PerPoleProjectedArea_m2"]/Pi];
+  accelerationTolerance=in["ExactEquilibriumRelativeTolerance"] forceScale/mass["TotalMass_kg"];
+  torqueTolerance=in["ExactEquilibriumRelativeTolerance"] forceScale characteristicRadius;
+  forcePass=TrueQ[forceResidual<=accelerationTolerance];
+  torquePass=TrueQ[torqueResidual<=torqueTolerance];
   <|"GravityLoads"->KeyDrop[gravity,{"IndividualMassPointPositionsHeliocentric_m","IndividualGravityForces_N","IndividualGravityTorquesAboutCOM_Nm"}],
     "SolarWindLoads"->KeyDrop[wind,{"PatchForces_N","PatchTorquesAboutCOM_Nm"}],
     "NetNaturalForceVector_N"->netForce,"NetNaturalTorqueAboutCOM_Nm"->netTorque,
     "NetNaturalAccelerationVector_m_s2"->acc,"NaturalForceResidualMagnitude_m_s2"->forceResidual,
     "NaturalTorqueResidualMagnitude_Nm"->torqueResidual,
+    "NaturalForceScale_N"->forceScale,"CharacteristicRadius_m"->characteristicRadius,
+    "DerivedNaturalAccelerationTolerance_m_s2"->accelerationTolerance,
+    "DerivedNaturalTorqueTolerance_Nm"->torqueTolerance,
     "ExactVectorEquilibrium"->forcePass,"ExactTorqueEquilibrium"->torquePass,
     "ExactNaturalEquilibrium"->(forcePass&&torquePass),
     "ExactNaturalEquilibriumPerPoleAssembly"->(forcePass&&torquePass),
     "EquilibriumScope"->"One independently operated pole system; evaluated separately for Pole1 and Pole2.",
+    "SyntheticAssumptionPolicy"->"Use a defensible mathematical approximation first; otherwise use an explicitly approved, slightly varied synthetic value, label it in the assumption register and code comments, and check upstream/downstream consistency. The default variation bound is 10% where a baseline exists.",
+    "ICARUSRedesignPremise"->"The user approves modest mission-specific actuator reengineering as feasible. Current hardware ratings remain unknown; only a demand-derived conditional redesign target may be reported until the full actuator is specified and qualified.",
     "PoleOperatingStateIsIndependent"->True,
   "WholeTwoPoleSystemEquilibriumEvaluated"->False,
     "WholeSystemEquilibriumNotEvaluatedReason"->"The two pole systems are intentionally independent. No inter-pole force, torque, controller, operating-state or structural coupling is modelled or required. Each pole receives its own independent force/torque equilibrium assessment; only scalar outputs such as mass and power are summed for reporting.",
     "ForceEquilibriumModel"->"Distributed solar gravity plus attitude-dependent patch-integrated radiation and continuous solar-wind ram-pressure force at the supplied initial attitude.",
     "TorqueEquilibriumModel"->"Radiation-pressure torque, gravity-gradient torque and patch-resolved solar-wind ram-pressure torque; thermal recoil and elastic coupling remain outside this Phase 1 model.",
-    "NaturalEquilibriumQualification"->If[forcePass&&torquePass,"Per-pole force and torque residuals both satisfy user-supplied tolerances within the stated reduced-order model; whole two-pole system balance is not evaluated.","NOT a natural equilibrium: one or both force/torque residuals exceed their user-supplied tolerances." ]|>
+    "NaturalEquilibriumQualification"->If[forcePass&&torquePass,"Per-pole force and torque residuals both satisfy the user-approved relative tolerance converted into that pole-specific acceleration and torque tolerances within the stated reduced-order model; whole two-pole system balance is not evaluated.","NOT a natural equilibrium: one or both force/torque residuals exceed the user-approved relative tolerance converted into that pole-specific acceleration and torque tolerances." ]|>
 ];
 
 phase1MergeNaturalEquilibrium[mass_Association,nat_Association] := Join[mass,<|
@@ -1196,6 +1519,9 @@ phase1MergeNaturalEquilibrium[mass_Association,nat_Association] := Join[mass,<|
   "NetRadialAcceleration_m_s2"->nat["NetNaturalAccelerationVector_m_s2"][[1]],
   "NaturalForceResidualMagnitude_m_s2"->nat["NaturalForceResidualMagnitude_m_s2"],
   "NaturalTorqueResidualMagnitude_Nm"->nat["NaturalTorqueResidualMagnitude_Nm"],
+  "NaturalForceScale_N"->nat["NaturalForceScale_N"],"CharacteristicRadius_m"->nat["CharacteristicRadius_m"],
+  "DerivedNaturalAccelerationTolerance_m_s2"->nat["DerivedNaturalAccelerationTolerance_m_s2"],
+  "DerivedNaturalTorqueTolerance_Nm"->nat["DerivedNaturalTorqueTolerance_Nm"],
   "ExactVectorEquilibrium"->nat["ExactVectorEquilibrium"],
   "ExactTorqueEquilibrium"->nat["ExactTorqueEquilibrium"],
   "ExactNaturalEquilibrium"->nat["ExactNaturalEquilibrium"],
@@ -1253,8 +1579,7 @@ phase1BracketedBisection[f_,{lo_?NumericQ,hi_?NumericQ},tol_?NumericQ,maxIter_In
 
 
 phase1InputChecksPass[checks_Association] := Module[{metadata, booleanChecks},
-  metadata = {"RequiredInputsPresent", "OptionalSourceNotesPresent",
-    "MissingRequiredInputKeys", "OptionalSourceNotesMissing", "InputValidationEvaluationFailed"};
+  metadata = {"RequiredInputsPresent", "MissingRequiredInputKeys", "InputValidationEvaluationFailed"};
   booleanChecks = KeyDrop[checks, metadata];
   TrueQ[Lookup[checks, "RequiredInputsPresent", False]] &&
     Lookup[checks, "MissingRequiredInputKeys", {"MissingMetadata"}] === {} &&
@@ -1273,7 +1598,8 @@ phase1InputChecks[in_Association] := Module[{missing,checks},
     "CoverageWithinUnitInterval"->TrueQ[0.<=in["PVFraction"]<=1.],
     "OpticalFractionsPhysicallyValid"->TrueQ[0.<=in["ReflectorSolarReflectivity"]<=1.&&0.<=in["ReflectorSolarTransmissivity"]<=1.&&in["ReflectorSolarReflectivity"]+in["ReflectorSolarTransmissivity"]<=1.&&0.<=in["PVSolarReflectivity"]<=1.&&0.<=in["PVSolarTransmissivity"]<=1.&&in["PVSolarReflectivity"]+in["PVSolarTransmissivity"]<=1.],
     "MembraneSubstrateMaterialNamePresent"->TrueQ[StringQ[in["MembraneSubstrateMaterialName"]]&&StringTrim[in["MembraneSubstrateMaterialName"]]=!=""],
-    "MassInputsNonnegative"->TrueQ[And@@(NumericQ[#]&&#>=0.&/@{in["PVArealMass_kg_m2"],in["PVIntegratedFabricArealMass_kg_m2"],in["ReflectorArealMass_kg_m2"],in["MembraneSubstrateArealMass_kg_m2"],in["WiringArealMass_kg_m2"],in["OtherInstalledArealMass_kg_m2"],in["ICARUSStationMass_kg"],in["DeferredEquipmentMass_kg"]})],
+    "MembraneSubstrateMaterialClassSupported"->MemberQ[{"DyneemaComposite","UltrathinFilm","OtherSpecifiedMaterial"},in["MembraneSubstrateMaterialClass"]],
+    "MassInputsNonnegative"->TrueQ[And@@(NumericQ[#]&&#>=0.&/@{in["PVArealMass_kg_m2"],in["PVArealMass_kg_m2"],in["ReflectorArealMass_kg_m2"],in["MembraneSubstrateReferenceArealMass_kg_m2"],in["WiringArealMass_kg_m2"],in["OtherInstalledArealMass_kg_m2"],in["ICARUSStationMass_kg"],in["DeferredEquipmentMass_kg"]})],
     "PVSpecificPowerReferenceIrradiancePositive"->TrueQ[NumericQ[in["PVSpecificPowerReferenceIrradiance_W_m2"]]&&in["PVSpecificPowerReferenceIrradiance_W_m2"]>0.],
     "PerimeterHardwareLinearMassValid"->TrueQ[NumericQ[in["PerimeterHardwareLinearMass_kg_m"]]&&in["PerimeterHardwareLinearMass_kg_m"]>=0.],
     "DeferredEquipmentMassExcludedFromPhase1MassDistribution"->TrueQ[in["DeferredEquipmentMass_kg"]==0.],
@@ -1281,11 +1607,12 @@ phase1InputChecks[in_Association] := Module[{missing,checks},
       ListQ[in["ICARUSStationPositionsLocal_m"]] && Length[in["ICARUSStationPositionsLocal_m"]]==in["ICARUSStationCount"] &&
       And@@(Function[p,Length[p]==3 && VectorQ[p,NumericQ]]/@in["ICARUSStationPositionsLocal_m"])],
     "StationCoordinatesWithinPlanform"->TrueQ[And@@(Function[p,Norm[p[[2;;3]]]<=Sqrt[in["PerPoleProjectedArea_m2"]/Pi] (1.+Sqrt[$MachineEpsilon])]/@in["ICARUSStationPositionsLocal_m"])],
-    "MassDistributionInputsValid"->TrueQ[in["ICARUSStationMass_kg"]>=0.&&in["ICARUSStationForceCapacity_N"]>0.&&0.<in["MembraneLoadSpreadFractionOfRadius"]<1.],
+    "MassDistributionInputsValid"->TrueQ[in["ICARUSStationMass_kg"]>=0.&&(in["ICARUSStationForceCapacity_N"]===Automatic||TrueQ[NumericQ[in["ICARUSStationForceCapacity_N"]]&&in["ICARUSStationForceCapacity_N"]>0.])&&0.<in["MembraneLoadSpreadFractionOfRadius"]<1.],
+    "ICARUSRedesignAssumptionInputsValid"->TrueQ[MemberQ[{True,False},in["ICARUSRedesignFeasibilityApproved"]]&&NumericQ[in["ICARUSRedesignForceReserveFraction"]]&&0.<=in["ICARUSRedesignForceReserveFraction"]<=0.10],
     "ICARUSValidationInputsValid"->TrueQ[in["ICARUSLoadMapRelativeTolerance"]>0.],
     "DisturbanceInputsValid"->TrueQ[in["FlarePeakFraction"]>=0.&&in["FlarePeakTime_s"]>=0.&&in["FlareDuration_s"]>0.&&0.<in["FlareTailCutoffFraction"]<1.&&phase1FlareTimeBounds[in]["StartTime_s"]>=0.&&in["CMEOnset_s"]>=0.&&in["CMEWindPressureMultiplier"]>=1.&&in["CMEDuration_s"]>0.&&in["Year_s"]>0.&&in["ReferenceMissionYears"]>0.],
-    "ControllerAndWobbleInputsValid"->TrueQ[And@@(#>=0.&/@{in["ControllerTranslationKp_perS2"],in["ControllerTranslationKd_perS"],in["ControllerAttitudeKp_perS2"],in["ControllerAttitudeKd_perS"],in["WobbleDampingRatio"]})&&in["WobbleNaturalPeriod_s"]>0.],
-    "PVScenarioOptionsValid"->TrueQ[Sort[in["PVScenarioOptions"]]===Sort[{"MITSpecificPowerLimited","MITIntegratedFabricSpecificPowerLimited","MITEfficiencyReference","ProjectSpecifiedTargetEfficiency"}]],
+    "ControllerAndWobbleInputsValid"->TrueQ[And@@(#>=0.&/@{in["ControllerTranslationKp_perS2"],in["ControllerTranslationKd_perS"],in["ControllerAttitudeKp_perS2"],in["ControllerAttitudeKd_perS"],in["WobbleDampingRatio"]})],
+    "PVScenarioOptionsValid"->TrueQ[Sort[in["PVScenarioOptions"]]===Sort[{"PVCellArraySpecificPowerLimited","PVCellArraySpecificPowerLimited","PVCellReferenceEfficiency","ProjectSpecifiedTargetEfficiency"}]],
         "PVScenarioRecognized"->MemberQ[in["PVScenarioOptions"],in["PrimaryPVScenario"]],
     "PVLayoutModelSupported"->TrueQ[in["PVLayoutModel"]==="UniformSurfaceCoverage"],
     "GeometryProfileModelSupported"->TrueQ[in["GeometryProfileModel"]==="SphericalCapSurrogate"],
@@ -1294,16 +1621,16 @@ phase1InputChecks[in_Association] := Module[{missing,checks},
     "CMETemporalProfileSupported"->TrueQ[in["CMETemporalProfile"]==="RectangularPressureEnvelope"],
     "ICARUSLoadTransferModelSupported"->TrueQ[in["ICARUSLoadTransferModel"]==="GaussianMomentCorrected"],
     "MembraneStructuralModelSupported"->TrueQ[in["MembraneStructuralModel"]==="TensionedCircularMembrane"],
-    "WobbleRestoringModelSupported"->TrueQ[in["WobbleRestoringModel"]==="LinearSecondOrderAttitudeRestoring"],
-    "PVIntegratedFabricMassPolicyValid"->MemberQ[{True,False},in["PVIntegratedMassIncludesStructuralFabric"]],
+    "WobbleRestoringModelSupported"->TrueQ[in["WobbleRestoringModel"]==="NonlinearGravityGradientRigidBody"],
+    "PVCellArrayMassPolicyValid"->MemberQ[{True,False},in["PVCellArrayMassPolicy"]],
     "ReflectionModelSupported"->TrueQ[in["ReflectionModel"]==="Specular"],
     "ThermalAndStructuralInputsPositive"->TrueQ[And@@(#>0.&/@{in["PVIRemissivity"],in["ReflectorIRemissivity"],in["ReflectorTemperatureLimit_K"],in["PVTemperatureLimit_K"],in["MembraneMaterialDensity_kg_m3"],in["MembraneEffectiveYoungsModulus_Pa"],in["MembraneEffectiveUltimateStrength_Pa"],in["StructuralSafetyFactor"],in["MaximumDeflectionFractionOfRadius"],in["MembranePretension_N_m"],in["CentimetersPerMeter"],in["CircularMembraneDeflectionCoefficient"],in["SEPDoseReference_protons_cm2"]})&&in["PVIRemissivity"]<=1.&&in["ReflectorIRemissivity"]<=1.&&in["MaximumDeflectionFractionOfRadius"]<1.],
     "ThermalInputsValid"->TrueQ[MemberQ[{True,False},in["BothSidesRadiate"]]&&0.<in["PVIRemissivity"]<=1.&&0.<in["ReflectorIRemissivity"]<=1.&&in["PVTemperatureLimit_K"]>0.&&in["ReflectorTemperatureLimit_K"]>0.],
     "SolarWindInputsValid"->TrueQ[in["SolarWindProtonDensity_1AU_cm3"]>=0.&&in["SolarWindSpeed_1AU_m_s"]>=0.&&in["ProtonMass_kg"]>0.],
     "DegradationInputsValid"->TrueQ[0.<=in["PVAnnualDegradationFraction"]<1.&&0.<=in["ReflectivityAnnualLossFraction"]<1.&&0.<=in["PVDegradationPerSEPReferenceDoseFraction"]<1.&&in["SEPDose_protons_cm2"]>=0.],
-    "EfficiencyAndElectricalInputsValid"->TrueQ[0.<=in["MITEfficiencyReference"]<=1.&&0.<=in["PVIntegratedEfficiencyReference"]<=1.&&0.<=in["ProjectTargetEfficiency"]<=1.&&0.<in["TransferEfficiency"]<=1.&&0.<in["ConditioningEfficiency"]<=1.],
+    "EfficiencyAndElectricalInputsValid"->TrueQ[0.<=in["PVCellReferenceEfficiency"]<=1.&&0.<=in["PVCellArrayEfficiencyReference"]<=1.&&0.<=in["ProjectTargetEfficiency"]<=1.&&0.<in["TransferEfficiency"]<=1.&&0.<in["ConditioningEfficiency"]<=1.],
     "RecoveryCriteriaValid"->TrueQ[in["RecoveryTimeMaximum_s"]>0.&&in["VelocityRecoveryTolerance_m_s"]>0.&&in["AngularRateRecoveryTolerance_rad_s"]>0.&&in["DynamicCheckDuration_s"]>Max[phase1FlareTimeBounds[in]["EndTime_s"],in["CMEOnset_s"]+in["CMEDuration_s"]]+in["RecoveryTimeMaximum_s"]],
-    "AcceptanceTolerancesValid"->TrueQ[And@@(#>0.&/@{in["ExactEquilibriumAccelerationTolerance_m_s2"],in["ExactEquilibriumTorqueTolerance_Nm"],in["ExactEquilibriumRelativeTolerance"],in["RadialDeviationToleranceFractionOfRadius"],in["LateralDeviationToleranceFractionOfRadius"],in["AttitudeTolerance_rad"],in["RecoveryTimeMaximum_s"],in["VelocityRecoveryTolerance_m_s"],in["AngularRateRecoveryTolerance_rad_s"],in["DynamicCheckDuration_s"],in["MeshCoefficientCrossCheckTolerance"],in["OptimizerGridCrossCheckRelativeTolerance"]})&&in["AttitudeTolerance_rad"]<Pi&&0.<=in["PVSearchRange"][[1]]<in["PVSearchRange"][[2]]<=1.],
+    "AcceptanceTolerancesValid"->TrueQ[And@@(#>0.&/@{in["ExactEquilibriumRelativeTolerance"],in["RadialDeviationToleranceFractionOfRadius"],in["LateralDeviationToleranceFractionOfRadius"],in["AttitudeTolerance_rad"],in["RecoveryTimeMaximum_s"],in["VelocityRecoveryTolerance_m_s"],in["AngularRateRecoveryTolerance_rad_s"],in["DynamicCheckDuration_s"],in["MeshCoefficientCrossCheckTolerance"],in["OptimizerGridCrossCheckRelativeTolerance"]})&&in["AttitudeTolerance_rad"]<Pi&&0.<=in["PVSearchRange"][[1]]<in["PVSearchRange"][[2]]<=1.],
     "ModelCoefficientInputsValid"->TrueQ[NumericQ[in["PVEfficiencyTemperatureCoefficient_perK"]]&&in["PVReferenceTemperature_K"]>0.],
     "DynamicAndMeshCountsValid"->TrueQ[And@@(IntegerQ[#]&&#>0&/@{in["MeshRadialCount"],in["MeshAzimuthCount"],in["OptimizerMeshRadialCount"],in["OptimizerMeshAzimuthCount"],in["DynamicSampleCount"],in["DynamicLoadPropagationSampleCount"]})&&IntegerQ[in["DynamicAccuracyGoal"]]&&in["DynamicAccuracyGoal"]>0&&IntegerQ[in["DynamicPrecisionGoal"]]&&in["DynamicPrecisionGoal"]>0&&(in["DynamicMaxSteps"]===Infinity||(IntegerQ[in["DynamicMaxSteps"]]&&in["DynamicMaxSteps"]>0))],
     "SearchBoundsValid"->TrueQ[VectorQ[in["DistanceSearchRange_m"],NumericQ]&&Length[in["DistanceSearchRange_m"]]==2&&in["DistanceSearchRange_m"][[1]]>0.&&in["DistanceSearchRange_m"][[2]]>in["DistanceSearchRange_m"][[1]]&&0.<=in["PVSearchRange"][[1]]<in["PVSearchRange"][[2]]<=1.],
@@ -1321,13 +1648,12 @@ phase1InputChecks[in_Association] := Module[{missing,checks},
    3. PUBLIC CALCULATION PIPELINE — dependency order and central storage
    ======================================================================== *)
 
-phase1StoreRun[derived_Association,results_Association,dependencies_Association] := Module[{stamp},
+phase1StoreRun[derived_Association,results_Association,dependencies_Association] := Module[{stamp,resolvedInputs},
   stamp=DateString[{"Year","-","Month","-","Day"," ","Hour",":","Minute",":","Second"}];
+  resolvedInputs=Phase1GetInputs[];
   $Phase1State=Join[$Phase1State,<|"Derived"->derived,"Results"->results,
-    "LastRun"-><|"Time"->stamp,"InputSnapshot"->$Phase1State["Inputs"],
-      "InputSnapshotHash"->Hash[$Phase1State["Inputs"],"SHA256"],
-      "OptionalSourceNotesSnapshot"->$Phase1State["InputNotes"],
-      "OptionalSourceNotesSnapshotHash"->Hash[$Phase1State["InputNotes"],"SHA256"],
+    "LastRun"-><|"Time"->stamp,"InputSnapshot"->resolvedInputs,
+      "InputSnapshotHash"->Hash[resolvedInputs,"SHA256"],
       "CalculationManifest"->dependencies|>|>];
   phase1Audit["FullCalculationPipelineCompleted",<|"ResultNames"->Keys[results],"DerivedNames"->Keys[derived]|>];
   results
@@ -1368,7 +1694,7 @@ phase1ComputeCurrentPole[] := Module[
   If[FailureQ[missionEnd],Return[missionEnd]];
   structure=phase1Structural[in,geo,rad];
   wrench=dyn["WrenchMatrix"];
-  capacity=in["ICARUSStationForceCapacity_N"];
+  capacity=If[in["ICARUSStationForceCapacity_N"]===Automatic,Automatic,in["ICARUSStationForceCapacity_N"]];
   zeroWrench=ConstantArray[0.,6];
   allocation=phase1Controller[dyn,zeroWrench,capacity];
   loadmap=phase1LoadMap[in,geo,mesh,dyn,allocation["StationForces_N"]];
@@ -1411,10 +1737,10 @@ phase1ComputeCurrentPole[] := Module[
     "06_Thermal"-><|"DependsOn"->{"Geometry","LocalRadiation","OpticalRegister","ThermalInputs"},"Outputs"->{"Thermal"}|>,
     "07_PVAndPower"-><|"DependsOn"->{"PVLayoutModel","Thermal","LocalRadiation","PVInputs","SpecificPowerReference","ElectricalInputs","Degradation","MissionDuration"},"Outputs"->{"PVPerformance","PowerLedger","MissionEndPerformance"}|>,
     "08_Structure"-><|"DependsOn"->{"MembraneStructuralModel","Geometry","LocalRadiation","MembraneInputs"},"Outputs"->{"StructuralScreen"}|>,
-    "09_DynamicsAndICARUS"-><|"DependsOn"->{"MassDistributionModel","ICARUSLoadTransferModel","WobbleRestoringModel","MassBalance","Geometry","ICARUSInputs","DynamicsInputs"},"Outputs"->{"DynamicInitialConditions","ICARUSWrenchMatrix","ICARUSCapacityPerStation_N","ICARUSInitialLoadMap","NaturalEquilibrium"}|>,
+    "09_DynamicsAndICARUS"-><|"DependsOn"->{"MassDistributionModel","ICARUSLoadTransferModel","GravityGradientRigidBodyDynamics","MassBalance","Geometry","ICARUSInputs","DynamicsInputs"},"Outputs"->{"DynamicInitialConditions","ICARUSWrenchMatrix","ICARUSCapacityPerStation_N","ICARUSInitialLoadMap","NaturalEquilibrium"}|>,
     "10_Validation"-><|"DependsOn"->{"All preceding calculation outputs"},"Outputs"->{"Validation"}|>,
     "11_CentralStateAudit"-><|"InputsFrom"->{"$Phase1State[Inputs]"},"OutputsStoredIn"->{"$Phase1State[Derived]","$Phase1State[Results]","$Phase1State[LastRun]"},
-      "FreshnessRule"->"Every core accessor verifies the exact numerical/model input snapshot and calculation manifest; optional source notes do not affect cache freshness."|>
+      "FreshnessRule"->"Every core accessor verifies the exact numerical/model input snapshot and calculation manifest."|>
   |>;
   phase1StoreRun[derived,results,manifest];
   results
@@ -1492,30 +1818,30 @@ phase1ValidateCore[in_,geo_,mesh_,optics_,rad_,mass_,thermal_,pv_,power_,structu
   solarMassDerived=in["SolarGravitationalParameter_m3_s2"]/in["UniversalGravitationalConstant_m3_kg_s2"];
   luminosityFromSolarConstant=4. Pi in["AstronomicalUnit_m"]^2 in["SolarIrradianceAt1AU_W_m2"];
   luminosityRelativeDifference=Abs[luminosityFromSolarConstant-in["SolarLuminosity_W"]]/in["SolarLuminosity_W"];
-  pvSpecificPowerImpliedEfficiency=in["PVArealMass_kg_m2"] in["PVFreeStandingSpecificPower_W_kg"]/in["PVSpecificPowerReferenceIrradiance_W_m2"];
-  integratedSpecificPowerImpliedEfficiency=in["PVIntegratedFabricArealMass_kg_m2"] in["PVIntegratedSpecificPower_W_kg"]/in["PVSpecificPowerReferenceIrradiance_W_m2"];
+  pvSpecificPowerImpliedEfficiency=in["PVArealMass_kg_m2"] in["PVCellArraySpecificPower_W_kg"]/in["PVSpecificPowerReferenceIrradiance_W_m2"];
+  integratedSpecificPowerImpliedEfficiency=in["PVArealMass_kg_m2"] in["PVCellArraySpecificPower_W_kg"]/in["PVSpecificPowerReferenceIrradiance_W_m2"];
   independentPVIrradianceFactor=If[pv["PVInstalledCurvedArea_m2"]>0.,
     pv["IncidentPVPower_W"]/(pv["PVInstalledCurvedArea_m2"] in["PVSpecificPowerReferenceIrradiance_W_m2"]),0.];
-  independentMITReferenceEfficiency=Clip[in["MITEfficiencyReference"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
+  independentMITReferenceEfficiency=Clip[in["PVCellReferenceEfficiency"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
     (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
-  independentIntegratedReferenceEfficiency=Clip[in["PVIntegratedEfficiencyReference"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
+  independentIntegratedReferenceEfficiency=Clip[in["PVCellArrayEfficiencyReference"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
     (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
   independentProjectTargetEfficiency=Clip[in["ProjectTargetEfficiency"]*(1.+in["PVEfficiencyTemperatureCoefficient_perK"]*
     (thermal["PVTemperature_K"]-in["PVReferenceTemperature_K"])),{0.,1.}];
   independentScenarioOutputs=<|
-    "MITSpecificPowerLimited"->Min[pv["MITFreeStandingDeviceMass_kg"] in["PVFreeStandingSpecificPower_W_kg"] independentPVIrradianceFactor pv["TotalPVDegradationFactor"],
+    "PVCellArraySpecificPowerLimited"->Min[pv["PVCellArrayDeviceMass_kg"] in["PVCellArraySpecificPower_W_kg"] independentPVIrradianceFactor pv["TotalPVDegradationFactor"],
       pv["IncidentPVPower_W"] independentMITReferenceEfficiency pv["TotalPVDegradationFactor"]],
-    "MITIntegratedFabricSpecificPowerLimited"->Min[pv["MITIntegratedFabricDeviceMass_kg"] in["PVIntegratedSpecificPower_W_kg"] independentPVIrradianceFactor pv["TotalPVDegradationFactor"],
+    "PVCellArraySpecificPowerLimited"->Min[pv["PVCellArrayDeviceMass_kg"] in["PVCellArraySpecificPower_W_kg"] independentPVIrradianceFactor pv["TotalPVDegradationFactor"],
       pv["IncidentPVPower_W"] independentIntegratedReferenceEfficiency pv["TotalPVDegradationFactor"]],
-    "MITEfficiencyReference"->pv["IncidentPVPower_W"] independentMITReferenceEfficiency pv["TotalPVDegradationFactor"],
+    "PVCellReferenceEfficiency"->pv["IncidentPVPower_W"] independentMITReferenceEfficiency pv["TotalPVDegradationFactor"],
     "ProjectSpecifiedTargetEfficiency"->pv["IncidentPVPower_W"] independentProjectTargetEfficiency pv["TotalPVDegradationFactor"]|>;
   pvOutputIndependent=Lookup[independentScenarioOutputs,pv["SelectedScenario"],Missing["ScenarioMismatch"]];
   deliveredPowerIndependent=pvOutputIndependent in["TransferEfficiency"] in["ConditioningEfficiency"];
   inertiaEigenvalues=Eigenvalues[dyn["InertiaTensor_kg_m2"]];
   expectedSubstrateMass=geo["GrossCurvedAreaPerPole_m2"]*
-    If[TrueQ[in["PVIntegratedMassIncludesStructuralFabric"] &&
-      in["PrimaryPVScenario"]==="MITIntegratedFabricSpecificPowerLimited"],
-      1.-in["PVFraction"],1.]*in["MembraneSubstrateArealMass_kg_m2"];
+    If[TrueQ[in["PVCellArrayMassPolicy"] &&
+      in["PrimaryPVScenario"]==="PVCellArraySpecificPowerLimited"],
+      1.-in["PVFraction"],1.]*phase1EffectiveSubstrateArealMass[in];
   validation=<|
     "CentralInputSchemaComplete"->TrueQ[Sort[Keys[in]]===Sort[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]]],
     "SolarLuminosityNominalReferenceConsistencyCheck"->TrueQ[luminosityRelativeDifference<=in["SolarReferenceConsistencyRelativeTolerance"]],
@@ -1531,17 +1857,17 @@ phase1ValidateCore[in_,geo_,mesh_,optics_,rad_,mass_,thermal_,pv_,power_,structu
       "LuminosityComparisonType"->"Consistency of IAU nominal reference constants, not an independent physical measurement."|>,
     "MITSpecificPowerImpliedEfficiency"->pvSpecificPowerImpliedEfficiency,
     "MITIntegratedSpecificPowerImpliedEfficiency"->integratedSpecificPowerImpliedEfficiency,
-    "FreeStandingSpecificPowerImpliedEfficiencyDoesNotExceedFreeStandingReference"->TrueQ[
-      pvSpecificPowerImpliedEfficiency<=in["MITEfficiencyReference"]+in["PowerLedgerRelativeTolerance"]],
+    "PVCellArraySpecificPowerImpliedEfficiencyDoesNotExceedFreeStandingReference"->TrueQ[
+      pvSpecificPowerImpliedEfficiency<=in["PVCellReferenceEfficiency"]+in["PowerLedgerRelativeTolerance"]],
     "IntegratedSpecificPowerImpliedEfficiencyDoesNotExceedIntegratedReference"->TrueQ[
-      integratedSpecificPowerImpliedEfficiency<=in["PVIntegratedEfficiencyReference"]+in["PowerLedgerRelativeTolerance"]],
+      integratedSpecificPowerImpliedEfficiency<=in["PVCellArrayEfficiencyReference"]+in["PowerLedgerRelativeTolerance"]],
     "PVSpecificPowerReferenceIrradiance_W_m2"->in["PVSpecificPowerReferenceIrradiance_W_m2"],
     "PVSpecificPowerIrradianceScalingIndependentlyRecalculated"->TrueQ[Abs[independentPVIrradianceFactor-pv["SpecificPowerIrradianceScalingFactor"]]<=in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[independentPVIrradianceFactor],Abs[pv["SpecificPowerIrradianceScalingFactor"]]]],
     "PVTechnologyScenarioMassesIndependentlyRecalculated"->TrueQ[
-      Abs[pv["MITFreeStandingDeviceMass_kg"]-pv["PVInstalledCurvedArea_m2"] in["PVArealMass_kg_m2"]]<=
-        in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[pv["MITFreeStandingDeviceMass_kg"]]] &&
-      Abs[pv["MITIntegratedFabricDeviceMass_kg"]-pv["PVInstalledCurvedArea_m2"] in["PVIntegratedFabricArealMass_kg_m2"]]<=
-        in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[pv["MITIntegratedFabricDeviceMass_kg"]]]],
+      Abs[pv["PVCellArrayDeviceMass_kg"]-pv["PVInstalledCurvedArea_m2"] in["PVArealMass_kg_m2"]]<=
+        in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[pv["PVCellArrayDeviceMass_kg"]]] &&
+      Abs[pv["PVCellArrayDeviceMass_kg"]-pv["PVInstalledCurvedArea_m2"] in["PVArealMass_kg_m2"]]<=
+        in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[pv["PVCellArrayDeviceMass_kg"]]]],
     "MITTemperatureAdjustedEfficiencyIndependentRecalculation"->TrueQ[
       Abs[independentMITReferenceEfficiency-pv["EffectiveMITReferenceEfficiency"]]<=in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[independentMITReferenceEfficiency]]],
     "IntegratedPVTemperatureAdjustedEfficiencyIndependentRecalculation"->TrueQ[
@@ -1580,7 +1906,9 @@ phase1ValidateCore[in_,geo_,mesh_,optics_,rad_,mass_,thermal_,pv_,power_,structu
     "SolarWindForceIndependentRecalculation"->TrueQ[Norm[windForceIndependent-natural["SolarWindLoads"]["TotalForce_N"]]<=in["AccelerationCrossCheckRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Norm[windForceIndependent],Norm[natural["SolarWindLoads"]["TotalForce_N"]]]],
     "SolarWindForceIncludedInEquilibrium"->TrueQ[Norm[independentAccel-natural["NetNaturalAccelerationVector_m_s2"]]<=in["AccelerationCrossCheckRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Norm[independentAccel],Norm[natural["NetNaturalAccelerationVector_m_s2"]]]],
     "NaturalTorqueIndependentRecalculation"->TrueQ[Norm[independentTorque-natural["NetNaturalTorqueAboutCOM_Nm"]]<=in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Norm[independentTorque],Norm[natural["NetNaturalTorqueAboutCOM_Nm"]]]],
-    "EquilibriumRequiresMassAndVectorResidual"->TrueQ[!mass["ExactNaturalEquilibrium"] || (mass["MassFeasible"] && mass["ExactVectorEquilibrium"] && mass["ExactTorqueEquilibrium"])],
+    (* The scalar centre-point mass-feasibility estimate is diagnostic only. The governing
+       equilibrium gate uses the distributed force/torque result and a closed mass ledger. *)
+    "EquilibriumRequiresMassAndVectorResidual"->TrueQ[mass["MassLedgerCloses"] && mass["ExactVectorEquilibrium"] && mass["ExactTorqueEquilibrium"]],
     "PVTemperatureIndependentRecalculation"->TrueQ[Abs[independentPVTemp-thermal["PVTemperature_K"]]<=in["ThermalResidualRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[independentPVTemp]]],
     "ReflectorTemperatureIndependentRecalculation"->TrueQ[Abs[independentRefTemp-thermal["ReflectorTemperature_K"]]<=in["ThermalResidualRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[independentRefTemp]]],
     "PVThermalBalanceResidual"->TrueQ[Abs[thermal["PVThermalBalanceResidual_W_m2"]]<in["ThermalResidualRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[thermal["PVMeanAbsorbedHeatFlux_W_m2"]]]],
@@ -1611,7 +1939,10 @@ phase1ValidateCore[in_,geo_,mesh_,optics_,rad_,mass_,thermal_,pv_,power_,structu
         "ICARUSLoadTransferModelSupported","MembraneStructuralModelSupported","WobbleRestoringModelSupported",
         "ICARUSStationCountScopeSupported"};
       TrueQ[AssociationQ[modelChecks] && And@@(TrueQ[Lookup[modelChecks,#,False]]&/@modelKeys)]],
-    "ICARUSCapacityUserInputNumeric"->TrueQ[NumericQ[in["ICARUSStationForceCapacity_N"]]]
+    "ICARUSCapacityRequirementCalculated"->TrueQ[AssociationQ[allocation]],
+    "ICARUSStationForceCapacitySpecified"->TrueQ[NumericQ[in["ICARUSStationForceCapacity_N"]]&&0.<in["ICARUSStationForceCapacity_N"]<Infinity],
+    "ICARUSStationForceCapacityInputValid"->TrueQ[in["ICARUSStationForceCapacity_N"]===Automatic || (NumericQ[in["ICARUSStationForceCapacity_N"]]&&0.<in["ICARUSStationForceCapacity_N"]<Infinity)],
+    "ICARUSHardwareCapacityQualified"->False
   |>;
   validation
 ];
@@ -1649,7 +1980,7 @@ Phase1DynamicInitialConditions[] := Module[{results=phase1EnsureCalculated[]},If
    ======================================================================== *)
 
 phase1SolveExactEquilibriumCurrent[] := Module[
-  {in=Phase1GetInputs[],geo,mesh,optics,sun,coeff,lo,hi,seed,root,ff,rad,mass,fn,result,lowResidual,highResidual,dyn,meshAtt,natural,candidate},
+  {in=Phase1GetInputs[],geo,mesh,optics,sun,coeff,lo,hi,seed,root,rootMethod,ff,rad,mass,fn,result,lowResidual,highResidual,dyn,meshAtt,natural,candidate},
   If[!phase1InputChecksPass[phase1InputChecks[in]],Return[Failure["InvalidPhase1Inputs",<|"Checks"->phase1InputChecks[in]|>]]];
   geo=phase1Geometry[in];mesh=phase1Mesh[in,geo,in["OptimizerMeshRadialCount"],in["OptimizerMeshAzimuthCount"]];
   optics=phase1Optics[in];sun=phase1SunVector[in["IncidenceAngle_deg"]];
@@ -1662,6 +1993,16 @@ phase1SolveExactEquilibriumCurrent[] := Module[
   ];
   lowResidual=fn[lo];highResidual=fn[hi];
   root=Quiet@Check[FindRoot[fn[ff]==0.,{ff,seed,lo,hi},Method->"Brent",WorkingPrecision->in["NumericalWorkingPrecision"]],$Failed];
+  rootMethod="FindRootBrent";
+  (* If Brent fails despite a sign-changing bracket, use the model's independent
+     bracketed-bisection routine rather than misreporting a physically available root
+     as absent. This changes only the numerical root-finding path, not the force model. *)
+  If[root===$Failed && NumericQ[lowResidual] && NumericQ[highResidual] && TrueQ[lowResidual highResidual<=0.],
+    With[{coverageRoot=phase1BracketedBisection[fn,{lo,hi},in["ExactEquilibriumRelativeTolerance"],
+        Max[200,2 in["OptimizerMaxIterations"]]]},
+      If[NumericQ[coverageRoot],root={ff->coverageRoot};rootMethod="BracketedBisectionFallback"]
+    ]
+  ];
   If[root===$Failed,
     result=<|"Status"->"No radial equilibrium root found within the configured PV coverage range.",
       "Root"->Missing["NoRoot"],"PVFractionSearchBounds"->{lo,hi},
@@ -1672,10 +2013,10 @@ phase1SolveExactEquilibriumCurrent[] := Module[
     ff=ff/.root;candidate=phase1NaturalCandidateAt[in,geo,mesh,optics,ff,in["Distance_m"]];
     rad=candidate["Radiation"];mass=candidate["Mass"];dyn=candidate["Dynamics"];
     meshAtt=candidate["AttitudeMesh"];natural=candidate["Natural"];
-    result=<|"Status"->If[mass["ExactNaturalEquilibrium"],"Natural force and torque equilibrium found within user-supplied tolerances.","A one-dimensional PV-coverage radial root was found, but exact vector-force and/or torque equilibrium failed; it remains diagnostic only."],
+    result=<|"Status"->If[mass["ExactNaturalEquilibrium"],"Natural force and torque equilibrium found within the approved relative tolerance converted to the active pole-specific acceleration and torque tolerances.","A one-dimensional PV-coverage radial root was found, but exact vector-force and/or torque equilibrium failed; it remains diagnostic only."],
       "InputSnapshot"->in,"OptimizerMeshResolution"->mesh["MeshResolution"],
       "MomentumCoefficients"->coeff,"PVFraction"->ff,"MassBalance"->mass,"NaturalEquilibrium"->natural,
-      "ExactNaturalEquilibrium"->mass["ExactNaturalEquilibrium"],"RootRule"->root|>
+      "ExactNaturalEquilibrium"->mass["ExactNaturalEquilibrium"],"RootMethod"->rootMethod,"RootRule"->root|>
   ];
   phase1StoreResult["ExactEquilibriumSolve",result]
 ];
@@ -1715,21 +2056,14 @@ phase1DistanceThermalFloorCurrent[coverage_:Automatic] := Module[
 ];
 
 phase1EvaluateCandidateTransient[distance_?NumericQ,coverage_?NumericQ,preChecks_Association:<||>] := Module[
-  {liveState=$Phase1State,candidateInputs,candidateProvenance,candidateState,core,dynamicRun,
-   dynamicSummary,checks,accepted,temporaryResult,noLeak,candidatePoleInputs,candidatePoleProvenance},
+  {liveState=$Phase1State,candidateInputs,candidateState,core,dynamicRun,
+   dynamicSummary,checks,accepted,temporaryResult,noLeak,candidatePoleInputs},
   If[!TrueQ[$Phase1ExecutingPole],
     Return[Failure["CandidateEvaluationRequiresPoleContext",<|"Reason"->"A candidate must be evaluated inside one pole's isolated execution context."|>]]];
   candidateInputs=Join[Phase1GetInputs[],<|"Distance_m"->distance,"PVFraction"->coverage|>];
-  candidateProvenance=Join[Lookup[$Phase1State,"InputNotes",<||>],<|
-    "Distance_m"->"Transient Mathematica optimizer candidate calculated from this pole's input snapshot; not a user-supplied value and not retained.",
-    "PVFraction"->"Transient Mathematica optimizer candidate calculated from this run's independent pole optimizations; not retained in the common design register."|>];
   candidatePoleInputs=Join[Lookup[Lookup[$Phase1State,"PoleOperatingInputs",<||>],$Phase1CurrentPole,<||>],<|"Distance_m"->distance|>];
-  candidatePoleProvenance=Join[Lookup[Lookup[$Phase1State,"PoleOperatingNotes",<||>],$Phase1CurrentPole,<||>],<|
-    "Distance_m"->("Transient optimizer candidate local to "<>ToString[$Phase1CurrentPole]<>
-      "; calculated by Mathematica, used only in this temporary isolated evaluation, and not retained.")|>];
-  candidateState=Join[$Phase1State,<|"Inputs"->candidateInputs,"InputNotes"->candidateProvenance,
+  candidateState=Join[$Phase1State,<|"Inputs"->candidateInputs,
     "PoleOperatingInputs"-><|$Phase1CurrentPole->candidatePoleInputs|>,
-    "PoleOperatingNotes"-><|$Phase1CurrentPole->candidatePoleProvenance|>,
     "Derived"-><||>,"Results"-><||>,"LastRun"->Missing["TransientCandidateRequiresFullRecalculation"]|>];
   temporaryResult=Block[{$Phase1State=candidateState},
     core=Phase1ComputeAll[];
@@ -1741,7 +2075,6 @@ phase1EvaluateCandidateTransient[distance_?NumericQ,coverage_?NumericQ,preChecks
         "AcceptanceChecks"->Join[preChecks,<|"TransientCoreRecalculation"->False|>],
         "ModelledAcceptanceUnderAssumptions"->False,"CandidateAppliedToCentralInputs"->False,
         "CandidateInputsRetained"->False,"CandidateInputSnapshot"->candidateInputs,
-        "CandidateInputProvenanceSnapshot"->candidateProvenance,
         "Status"->"Transient core recalculation failed; no dynamic acceptance is claimed."|>,
       dynamicRun=Phase1IntegratedSimulation[];
       dynamicSummary=If[AssociationQ[dynamicRun],KeyDrop[dynamicRun,"Solution"],dynamicRun];
@@ -1760,7 +2093,8 @@ phase1EvaluateCandidateTransient[distance_?NumericQ,coverage_?NumericQ,preChecks
         "RadialStability"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"RadialDeviationWithinLimit",False]],False],
         "LateralStability"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"LateralDeviationWithinLimit",False]],False],
         "AttitudeStability"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"AttitudeWithinLimit",False]],False],
-        "ICARUSCapacity"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"ICARUSWithinCapacity",False]],False],
+        "ICARUSSpecifiedForceCapacity"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"ICARUSForceDemandWithinSpecifiedCapacity",False]],False],
+        "ICARUSHardwareQualification"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"ICARUSHardwareCapacityQualified",False]],False],
         "DynamicLoadMapForceAndMomentConserved"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"DynamicLoadMapForceAndMomentConserved",False]],False],
         "DynamicStructuralLoadScreen"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"DynamicStructuralLoadScreenPass",False]],False],
         "RecoveryTime"->If[AssociationQ[dynamicRun],TrueQ[Lookup[dynamicRun,"RecoveryWithinLimit",False]],False]|>];
@@ -1771,7 +2105,7 @@ phase1EvaluateCandidateTransient[distance_?NumericQ,coverage_?NumericQ,preChecks
         "DynamicSimulation"->dynamicSummary,"AcceptanceChecks"->checks,
         "ModelledAcceptanceUnderAssumptions"->accepted,
         "CandidateAppliedToCentralInputs"->False,"CandidateInputsRetained"->False,
-        "CandidateInputSnapshot"->candidateInputs,"CandidateInputProvenanceSnapshot"->candidateProvenance,
+        "CandidateInputSnapshot"->candidateInputs,
         "Status"->If[accepted,"Candidate passed the static and dynamic model gates in a temporary per-pole snapshot; live inputs were not modified.",
           "Candidate failed one or more static or dynamic gates in a temporary per-pole snapshot; live inputs were not modified."]|>
     ]
@@ -1785,7 +2119,7 @@ phase1EvaluateCandidateTransient[distance_?NumericQ,coverage_?NumericQ,preChecks
 ];
 
 phase1JointOptimizationCurrent[] := Module[
-  {in=Phase1GetInputs[],inProvenance,computed,geo,mesh,optics,sun,coeff,illum,loF,hiF,loR,hiR,
+  {in=Phase1GetInputs[],computed,geo,mesh,optics,sun,coeff,illum,loF,hiF,loR,hiR,
    full,screen,rr,ff,radCandidate,massCandidate,thermalCandidate,pvCandidate,powerCandidate,
    structureCandidate,capacity,fullFeasible,dynamicAccepted,results,candidateEvaluation,
    validOptimizationResultQ,gridDistancePoints,gridCoveragePoints,gridRecords,
@@ -1801,7 +2135,7 @@ phase1JointOptimizationCurrent[] := Module[
    objectiveAtCandidate},
   computed=phase1EnsureCalculated[];
   If[FailureQ[computed],Return[computed]];
-  in=Phase1GetInputs[];inProvenance=Lookup[$Phase1State,"InputNotes",<||>];
+  in=Phase1GetInputs[];
   exactEquilibriumCheck=Phase1SolveExactEquilibrium[];
   If[FailureQ[exactEquilibriumCheck],Return[exactEquilibriumCheck]];
   geo=phase1Geometry[in];mesh=phase1Mesh[in,geo,in["OptimizerMeshRadialCount"],in["OptimizerMeshAzimuthCount"]];
@@ -1822,9 +2156,9 @@ phase1JointOptimizationCurrent[] := Module[
   thermalStateAt[r_?NumericQ,f_?NumericQ] := performanceStateAt[r,f]["Thermal"];
   structuralStateAt[r_?NumericQ,f_?NumericQ] := structuralStateAt[r,f]=Module[{candidate=naturalStateAt[r,f]},
     phase1Structural[candidate["Inputs"],geo,candidate["Radiation"],f]];
-  forceMargin[r_?NumericQ,f_?NumericQ] := in["ExactEquilibriumAccelerationTolerance_m_s2"]-
+  forceMargin[r_?NumericQ,f_?NumericQ] := naturalStateAt[r,f]["Natural"]["DerivedNaturalAccelerationTolerance_m_s2"]-
     naturalStateAt[r,f]["Natural"]["NaturalForceResidualMagnitude_m_s2"];
-  torqueMargin[r_?NumericQ,f_?NumericQ] := in["ExactEquilibriumTorqueTolerance_Nm"]-
+  torqueMargin[r_?NumericQ,f_?NumericQ] := naturalStateAt[r,f]["Natural"]["DerivedNaturalTorqueTolerance_Nm"]-
     naturalStateAt[r,f]["Natural"]["NaturalTorqueResidualMagnitude_Nm"];
   pvTemperatureMargin[r_?NumericQ,f_?NumericQ] := in["PVTemperatureLimit_K"]-thermalStateAt[r,f]["PVTemperature_K"];
   reflectorTemperatureMargin[r_?NumericQ,f_?NumericQ] := in["ReflectorTemperatureLimit_K"]-
@@ -1926,7 +2260,7 @@ phase1JointOptimizationCurrent[] := Module[
   candidateRootCrossCheck=NumericQ[candidateBisectionRoot]&&NumericQ[rootAtCandidate]&&
     Abs[candidateBisectionRoot-rootAtCandidate]<=in["ExactEquilibriumRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[ff],Abs[candidateBisectionRoot]];
   candidateRootResidual=Abs[candidateMassResidual[ff]];
-  capacity=in["ICARUSStationForceCapacity_N"];
+  capacity=If[in["ICARUSStationForceCapacity_N"]===Automatic,Automatic,in["ICARUSStationForceCapacity_N"]];
   fullFeasible=validOptimizationResultQ[full] && gridCrossCheckPass && gridConstraintCrossCheckPass &&
     optimizerMassCheck && optimizerPowerCheck && optimizerThermalCheck && optimizerStructuralCheck &&
     candidateRootCrossCheck && massCandidate["MassLedgerCloses"] && naturalCandidate["ExactNaturalEquilibrium"] &&
@@ -1934,7 +2268,7 @@ phase1JointOptimizationCurrent[] := Module[
     TrueQ[pvCandidate["PVOutputDoesNotExceedAbsorbedPower"]] && TrueQ[pvCandidate["PVOutputDoesNotExceedSpecificPower"]] &&
     TrueQ[thermalCandidate["PVThermalCouplingConverged"]];
   results=<|"Status"->"Joint distance/PV-coverage optimization; every candidate is evaluated with patch-integrated radiation, distributed gravity and gravity-gradient torque, its own mass/inertia, PV output, thermal state and structural margins.",
-    "InputSnapshot"->in,"OptionalSourceNotesSnapshot"->inProvenance,
+    "InputSnapshot"->in,
     "OptimizationGeometry"->geo,"OptimizationMeshResolution"->mesh["MeshResolution"],
     "OptimizationMomentumCoefficients"->coeff,"OptimizationIllumination"->illum,
     "ThermalDistanceFloorAtCurrentCoverage"->tempFloorResult,
@@ -1989,7 +2323,7 @@ phase1JointOptimizationCurrent[] := Module[
     "ExactNaturalEquilibriumPerPoleAssembly"->naturalCandidate["ExactNaturalEquilibrium"],
     "WholeTwoPoleSystemEquilibriumEvaluated"->False,
     "OptimizationPowerReferenceEpoch"->"Start-of-mission; mission-end degradation is calculated separately and is not included in this objective.",
-    "ApproximationPolicy"->"All non-universal model inputs and model-form choices are project-supplied, centrally stored and value-gated. Both distance and PV coverage are independent optimization variables. Candidate natural equilibrium is recomputed at each pair using attitude-dependent patch radiation and distributed solar gravity/torque. Thermal/structural/dynamic models remain explicitly reduced-order screens."|>;
+    "AssumptionPolicy"->"All non-universal design/material/operating register values are user-approved assumptions or per-pole derived values, centrally stored and separately classified. Both distance and PV coverage are independent optimization variables. Candidate natural equilibrium is recomputed at each pair using attitude-dependent patch radiation and distributed solar gravity/torque. Thermal/structural/dynamic models remain explicitly reduced-order screens; assumptions do not imply qualification."|>;
   (* Recalculate and dynamically integrate every statically feasible optimizer candidate
      in a temporary pole-local snapshot. No optimizer value is written to live inputs. *)
   candidateEvaluation=If[TrueQ[fullFeasible],
@@ -2031,11 +2365,97 @@ phase1QuaternionToRotationVector[qIn_List,tol_:Sqrt[$MachineEpsilon]] := Module[
 ];
 phase1QuaternionRate[q_,w_] := 0.5 {{-q[[2]],-q[[3]],-q[[4]]},{q[[1]],-q[[4]],q[[3]]},{q[[4]],q[[1]],-q[[2]]},{-q[[3]],q[[2]],q[[1]]}}.w;
 
+
+phase1CrossProductMatrix[v_List] := {{0.,-v[[3]],v[[2]]},{v[[3]],0.,-v[[1]]},{-v[[2]],v[[1]],0.}};
+
+(* Classical first-order gravity-gradient torque for a rigid body whose dimensions
+   are small relative to heliocentric distance. The pole-local radial direction is
+   expressed in body coordinates; each pole uses its own distance, inertia, and attitude. *)
+phase1GravityGradientTorqueBody[in_Association,inertia_?MatrixQ,q_List] := Module[{radialBody},
+  radialBody=Transpose[phase1RotationMatrix[q]].{1.,0.,0.};
+  3. in["SolarGravitationalParameter_m3_s2"]/in["Distance_m"]^3 Cross[radialBody,inertia.radialBody]
+];
+
+(* Linearize the exact gravity-gradient torque about the radially aligned attitude.
+   The generalized eigenproblem is mass-normalized with the pole's own inertia tensor.
+   Positive eigenvalues identify exponentially unstable modes; negative eigenvalues
+   identify oscillatory modes; zero eigenvalues are neutral (including spin about the
+   Sun-radial axis). Damping is applied only to stable oscillatory modes, so it cannot
+   conceal a physically unstable gravity-gradient mode. *)
+phase1GravityGradientLinearization[in_Association,inertia_?MatrixQ] := Module[
+  {radial={1.,0.,0.},skew,kappa,stiffness,inertiaSqrt,inertiaInvSqrt,h,
+   eigenvalues,eigenvectors,ordered,modalBasis,tolerance,modalFrequencies,
+   modalPeriods,unstableRates,modeClass,dampingMatrix,modes,modeScale},
+  If[Dimensions[inertia]=!={3,3} || !MatrixQ[inertia,NumericQ] ||
+      !TrueQ[Min[Eigenvalues[inertia]]>0.],
+    Return[Failure["InvalidInertiaForGravityGradientLinearization",<|"InertiaTensor"->inertia|>]]
+  ];
+  skew=phase1CrossProductMatrix[radial];
+  kappa=3. in["SolarGravitationalParameter_m3_s2"]/in["Distance_m"]^3;
+  stiffness=kappa (skew.inertia-phase1CrossProductMatrix[inertia.radial]).skew;
+  stiffness=N[(stiffness+Transpose[stiffness])/2.];
+  inertiaSqrt=MatrixPower[inertia,1/2];
+  inertiaInvSqrt=MatrixPower[inertia,-1/2];
+  h=N[inertiaInvSqrt.stiffness.inertiaInvSqrt];
+  h=(h+Transpose[h])/2.;
+  {eigenvalues,eigenvectors}=Eigensystem[h];
+  ordered=SortBy[Transpose[{Re@N[eigenvalues],N[eigenvectors]}],First];
+  eigenvalues=ordered[[All,1]];
+  eigenvectors=ordered[[All,2]];
+  modalBasis=Transpose[eigenvectors];
+  modeScale=Max[Abs[eigenvalues]];
+  tolerance=Which[
+    modeScale==0.,0.,
+    modeScale>$MinMachineNumber/(100. $MachineEpsilon),100. $MachineEpsilon modeScale,
+    True,$MinMachineNumber
+  ];
+  modalFrequencies=Map[If[# < -tolerance,Sqrt[-#],0.]&,eigenvalues];
+  modalPeriods=Map[If[# < -tolerance,2. Pi/Sqrt[-#],Missing["NoOscillatoryGravityGradientMode"]]&,eigenvalues];
+  unstableRates=Map[If[# > tolerance,Sqrt[#],0.]&,eigenvalues];
+  modeClass=Which[
+    AnyTrue[eigenvalues,#>tolerance&],"Unstable",
+    AnyTrue[eigenvalues,# < -tolerance&],"TransverselyStableWithNeutralModes",
+    True,"Neutral"
+  ];
+  dampingMatrix=2. in["WobbleDampingRatio"] inertiaSqrt.modalBasis.
+    DiagonalMatrix[modalFrequencies].Transpose[modalBasis].inertiaSqrt;
+  modes=Table[<|"ModeIndex"->i,"Eigenvalue_s2"->eigenvalues[[i]],
+    "ModeType"->Which[eigenvalues[[i]]>tolerance,"Unstable",
+      eigenvalues[[i]] < -tolerance,"OscillatoryStable",True,"Neutral"],
+    "NaturalFrequency_rad_s"->If[eigenvalues[[i]] < -tolerance,modalFrequencies[[i]],Missing["NoOscillatoryMode"]],
+    "Period_s"->modalPeriods[[i]],
+    "InstabilityGrowthRate_s"->If[eigenvalues[[i]]>tolerance,unstableRates[[i]],Missing["NoUnstableGrowthMode"]]|>,{i,3}];
+  <|"ReferenceAttitude"->"Body x-axis aligned with the pole-local Sun-radial direction.",
+    "GravityGradientStiffnessMatrix_Nm_per_rad"->stiffness,
+    "MassNormalizedLinearization_s2"->h,
+    "LinearizedModeEigenvalues_s2"->eigenvalues,
+    "Modes"->modes,
+    "StableNaturalFrequencies_rad_s"->Pick[modalFrequencies,eigenvalues,_?(# < -tolerance&)],
+    "StableNaturalPeriods_s"->Pick[modalPeriods,eigenvalues,_?(# < -tolerance&)],
+    "UnstableGrowthRates_s"->Pick[unstableRates,eigenvalues,_?(# > tolerance&)],
+    "NeutralModeCount"->Count[eigenvalues,_?(Abs[#]<=tolerance&)],
+    "LinearizedModeClass"->modeClass,
+    "LinearizedTransverseStabilityPass"->(modeClass==="TransverselyStableWithNeutralModes"),
+    "EigenvalueTolerance_s2"->tolerance,
+    "DampingMatrix_Nm_s_per_rad"->N[dampingMatrix],
+    "DampingAppliedOnlyToStableModes"->True,
+    "Distance_m"->in["Distance_m"],
+    "InertiaTensor_kg_m2"->inertia|>
+];
+
 (* Software-only synthetic tests. These test pure mathematical helpers without
    requiring collector inputs and without changing the central model state. *)
 Phase1RunSoftwareSelfTests[] := Module[
   {rotationVector = {0.13, -0.21, 0.08}, q, rotation, stations, wrench,
-   irradiance1, irradiance2, root, bisectionChecks, checks, stateBefore, stateAfter},
+   irradiance1, irradiance2, root, bisectionChecks, checks, stateBefore, stateAfter,
+   testInputs,doubledDistanceInputs,diskInertia,rodInertia,sphereInertia,diskModes,rodModes,sphereModes,
+   rodModesDoubledDistance,thetaStep,numericalDiskStiffness,
+   dyneemaMaterialInput,filmMaterialInput,dyneemaEffectiveMass,filmEffectiveMass,
+   legacySubstrateInputs,normalizedLegacySubstrateInputs,ambiguousSubstrateInputs,
+   capacityProbe,capacityFiniteProbe,capacityInvalidProbe,
+   controllerUnknownCapacity,controllerFiniteCapacity,taskGeometryReady,taskGeometryMissing,
+   taskRadiationMissing,taskUnknownName,taskIntegratedMissing,taskSoftwareOnly,taskCrossPoleBlocked,taskUnknownPublic,
+   stationDemandProbe,stationDemandInvalidProbe,requirementsProbe,independentTaskFixture,independentGeometryRun,independentMeshRun,independentOpticsRun,independentGeometryStatus,independentPoleState,independentDerived,independentPole2Update,independentStatusAfterPole2Update,independentSharedUpdate,independentStatusAfterSharedUpdate,independentInitialRadiationRun,independentInitialRadiationStatus,independentInitialRadiation},
   stateBefore = $Phase1State;
   q = phase1Quaternion[rotationVector];
   rotation = phase1RotationMatrix[q];
@@ -2049,6 +2469,96 @@ Phase1RunSoftwareSelfTests[] := Module[
     "EndpointRootAccepted" -> TrueQ[phase1BracketedBisection[Function[x, x - 1.], {1., 2.}, 10.^-10, 20] === 1.],
     "UnbracketedRootRejected" -> (phase1BracketedBisection[Function[x, x^2 + 1.], {-1., 1.}, 10.^-8, 20] === $Failed)
   |>;
+  testInputs=<|"SolarGravitationalParameter_m3_s2"->1.3271244*10^20,"Distance_m"->149597870700.,"WobbleDampingRatio"->0.|>;
+  diskInertia=DiagonalMatrix[{10.,5.,5.}];
+  rodInertia=DiagonalMatrix[{1.,5.,5.}];
+  sphereInertia=IdentityMatrix[3];
+  diskModes=phase1GravityGradientLinearization[testInputs,diskInertia];
+  rodModes=phase1GravityGradientLinearization[testInputs,rodInertia];
+  sphereModes=phase1GravityGradientLinearization[testInputs,sphereInertia];
+  doubledDistanceInputs=Join[testInputs,<|"Distance_m"->2. testInputs["Distance_m"]|>];
+  rodModesDoubledDistance=phase1GravityGradientLinearization[doubledDistanceInputs,rodInertia];
+  dyneemaMaterialInput=<|"MembraneSubstrateMaterialName"->"Arbitrary supplier name",
+    "MembraneSubstrateMaterialClass"->"DyneemaComposite",
+    "MembraneSubstrateReferenceArealMass_kg_m2"->0.013|>;
+  filmMaterialInput=<|"MembraneSubstrateMaterialName"->"Dyneema brand label does not control treatment",
+    "MembraneSubstrateMaterialClass"->"UltrathinFilm",
+    "MembraneSubstrateReferenceArealMass_kg_m2"->0.00071|>;
+  dyneemaEffectiveMass=phase1EffectiveSubstrateArealMass[dyneemaMaterialInput];
+  filmEffectiveMass=phase1EffectiveSubstrateArealMass[filmMaterialInput];
+  legacySubstrateInputs=<|"MembraneSubstrateArealMass_kg_m2"->0.013|>;
+  normalizedLegacySubstrateInputs=phase1NormalizeSavedSharedInputs[legacySubstrateInputs];
+  ambiguousSubstrateInputs=phase1NormalizeSavedSharedInputs[<|
+    "MembraneSubstrateArealMass_kg_m2"->0.013,
+    "MembraneSubstrateReferenceArealMass_kg_m2"->0.013|>];
+  capacityProbe=phase1ApplyStationCapacity[{{3.,4.,0.}},Automatic];
+  capacityFiniteProbe=phase1ApplyStationCapacity[{{3.,4.,0.}},3.];
+  capacityInvalidProbe=phase1ApplyStationCapacity[{{3.,4.,0.}},0.];
+  controllerUnknownCapacity=phase1Controller[<|"WrenchMatrix"->wrench|>,UnitVector[6,1],Automatic];
+  controllerFiniteCapacity=phase1Controller[<|"WrenchMatrix"->wrench|>,UnitVector[6,1],0.01];
+  taskGeometryReady=phase1TaskInputStatusFromInputs[<|"GeometryProfileModel"->"SphericalCapSurrogate",
+    "PerPoleProjectedArea_m2"->100.,"CapDepthToPlanformRadius"->0.2|>,"Geometry"];
+  taskGeometryMissing=phase1TaskInputStatusFromInputs[<|"GeometryProfileModel"->"SphericalCapSurrogate",
+    "CapDepthToPlanformRadius"->0.2|>,"Geometry"];
+  taskRadiationMissing=phase1TaskInputStatusFromInputs[<||>,"RadiationLoads"];
+  taskUnknownName=phase1TaskInputStatusFromInputs[<||>,"NotARegisteredTask"];
+  taskIntegratedMissing=phase1TaskInputStatusFromInputs[<||>,"IntegratedSimulation"];
+  taskSoftwareOnly=phase1TaskInputStatusFromInputs[<||>,"SoftwareSelfTests"];
+  taskCrossPoleBlocked=Block[{$Phase1ExecutingPole=True,$Phase1CurrentPole="Pole1"},
+    Phase1TaskInputStatus["Pole2","NaturalEquilibrium"]];
+  taskUnknownPublic=Phase1TaskInputStatus["NotARegisteredTask"];
+  stationDemandProbe=phase1StationDemandSummary[{{0.,1.,0.},{0.,0.,2.}},
+    {{{0.,0.,3.},{4.,0.,0.}},{{0.,0.,2.},{0.,3.,0.}}}];
+  stationDemandInvalidProbe=phase1StationDemandSummary[{{0.,1.,0.}},{{{1.,0.,0.},{0.,1.,0.}}}];
+  requirementsProbe=Phase1InputRequirements[];
+  independentTaskFixture=Block[{$Phase1State=Join[$Phase1State,<|
+      "Inputs"->Join[$Phase1State["Inputs"],<|
+        "GeometryProfileModel"->"SphericalCapSurrogate","PerPoleProjectedArea_m2"->100.,
+        "CapDepthToPlanformRadius"->0.2,"MeshRadialCount"->16,"MeshAzimuthCount"->32,
+        "MeshAreaRelativeTolerance"->0.01,"ReflectionModel"->"Specular",
+        "ReflectorSolarReflectivity"->0.999,"ReflectorSolarTransmissivity"->0.,
+        "PVSolarReflectivity"->0.1,"PVSolarTransmissivity"->0.,
+        "OpticalClosureTolerance"->10.^-12,"PVFraction"->0.005|>],
+      "PoleOperatingInputs"->Join[$Phase1State["PoleOperatingInputs"],<|
+        "Pole1"->Join[$Phase1State["PoleOperatingInputs"]["Pole1"],<|
+          "Distance_m"->149597870700.,"IncidenceAngle_deg"->0.|>]|>],
+      "PoleStates"-><||>,"AuditLog"->{}, "LastRun"->Missing["NotRun"]|>]},
+    Module[{g,m,o,st,ps,pole2Update,statusAfterPole2,sharedUpdate,statusAfterShared,poleStatesCleared},
+      g=Phase1RunPoleTask["Pole1","Geometry"];
+      st=Phase1TaskInputStatus["Pole1","Geometry"];
+      m=Phase1RunPoleTask["Pole1","SurfaceMesh"];
+      o=Phase1RunPoleTask["Pole1","OpticalRegister"];
+      r=Phase1RunPoleTask["Pole1","InitialRadiationLoads"];
+      rs=Phase1TaskInputStatus["Pole1","InitialRadiationLoads"];
+      ps=Phase1GetPoleState["Pole1"];
+      pole2Update=Phase1SetPoleOperatingInputs["Pole2",<|"Distance_m"->1.|>];
+      statusAfterPole2=Phase1TaskInputStatus["Pole1","Geometry"];
+      sharedUpdate=Phase1SetInputs[<|"PerPoleProjectedArea_m2"->101.|>];
+      statusAfterShared=Phase1TaskInputStatus["Pole1","Geometry"];
+      poleStatesCleared=Lookup[$Phase1State,"PoleStates",<||>]===<||>;
+      <|"GeometryRun"->g,"GeometryStatusAfterRun"->st,
+        "MeshRun"->m,"OpticsRun"->o,"InitialRadiationRun"->r,
+        "InitialRadiationStatusAfterRun"->rs,"PoleState"->ps,
+        "Pole2Update"->pole2Update,"GeometryStatusAfterPole2Update"->statusAfterPole2,
+        "SharedUpdate"->sharedUpdate,"GeometryStatusAfterSharedUpdate"->statusAfterShared,
+        "PoleStatesEmptyAfterSharedUpdate"->poleStatesCleared,
+        "Pole2StateAbsent"->!KeyExistsQ[Lookup[$Phase1State,"PoleStates",<||>],"Pole2"],
+        "SharedInputFixtureRetained"->TrueQ[$Phase1State["Inputs"]["PerPoleProjectedArea_m2"]===101.]|>
+    ]
+  ];
+  independentGeometryRun=Lookup[independentTaskFixture,"GeometryRun",$Failed];
+  independentMeshRun=Lookup[independentTaskFixture,"MeshRun",$Failed];
+  independentOpticsRun=Lookup[independentTaskFixture,"OpticsRun",$Failed];
+  independentInitialRadiationRun=Lookup[independentTaskFixture,"InitialRadiationRun",$Failed];
+  independentInitialRadiationStatus=Lookup[independentTaskFixture,"InitialRadiationStatusAfterRun",<||>];
+  independentGeometryStatus=Lookup[independentTaskFixture,"GeometryStatusAfterRun",<||>];
+  independentPoleState=Lookup[independentTaskFixture,"PoleState",<||>];
+  independentDerived=Lookup[independentPoleState,"Derived",<||>];
+  independentInitialRadiation=Lookup[independentDerived,"InitialRadiationLoads",<||>];
+  thetaStep=10.^-6;
+  numericalDiskStiffness=Transpose@Table[
+    (phase1GravityGradientTorqueBody[testInputs,diskInertia,phase1Quaternion[thetaStep UnitVector[3,j]]]-
+      phase1GravityGradientTorqueBody[testInputs,diskInertia,phase1Quaternion[-thetaStep UnitVector[3,j]]])/(2. thetaStep),{j,3}];
   checks = <|
     "QuaternionFiniteAndUnit" -> TrueQ[VectorQ[q, NumericQ] && Length[q] == 4 && Abs[Norm[q] - 1.] < 10.^-12],
     "QuaternionRoundTrip" -> TrueQ[Norm[phase1QuaternionToRotationVector[q] - rotationVector] < 10.^-10],
@@ -2058,7 +2568,133 @@ Phase1RunSoftwareSelfTests[] := Module[
     "FourStationWrenchMatrixFullRank" -> TrueQ[MatrixRank[wrench] == 6],
     "SolarIrradianceInverseSquare" -> TrueQ[NumericQ[irradiance1] && NumericQ[irradiance2] && Abs[irradiance2/irradiance1 - 1./4.] < 10.^-12],
     "InvalidSolarDistanceRejected" -> FailureQ[phase1SolarIrradiance[<|"SolarLuminosity_W" -> 4. Pi|>, 0.]],
-    "OptionalNotesDoNotEnterThisTest" -> True
+    "GravityGradientStiffnessMatchesFiniteDifference" -> TrueQ[Norm[numericalDiskStiffness-diskModes["GravityGradientStiffnessMatrix_Nm_per_rad"]]/Max[1.,Norm[numericalDiskStiffness]]<10.^-8],
+    "RadiallyAlignedThinDiskIsClassifiedUnstable" -> TrueQ[diskModes["LinearizedModeClass"]==="Unstable"&&Length[diskModes["UnstableGrowthRates_s"]]==2],
+    "RadiallyAlignedRodHasTwoStableTransverseModes" -> TrueQ[rodModes["LinearizedModeClass"]==="TransverselyStableWithNeutralModes"&&Length[rodModes["StableNaturalPeriods_s"]]==2],
+    "SphericalInertiaHasOnlyNeutralGravityGradientModes" -> TrueQ[sphereModes["LinearizedModeClass"]==="Neutral"&&sphereModes["NeutralModeCount"]==3],
+    "GravityGradientPeriodsScaleAsDistanceThreeHalves" -> TrueQ[
+      Length[rodModes["StableNaturalPeriods_s"]]==2 && Length[rodModesDoubledDistance["StableNaturalPeriods_s"]]==2 &&
+      Max[Abs[rodModesDoubledDistance["StableNaturalPeriods_s"]/rodModes["StableNaturalPeriods_s"]-2.^(3./2.)]]<10.^-10],
+    "WobbleModelIsInternalNotProjectInput" -> TrueQ[
+      MemberQ[$Phase1ReferenceAndSoftwareDefaultKeys,"WobbleRestoringModel"] &&
+      !MemberQ[Flatten[Values[$Phase1InputCategories]],"WobbleRestoringModel"]],
+    "DyneemaReductionIsExplicitAndAppliedOnceToReferenceMass" -> TrueQ[
+      Abs[dyneemaEffectiveMass-0.0104]<10.^-14 &&
+      Abs[phase1EffectiveSubstrateArealMass[dyneemaMaterialInput]-dyneemaEffectiveMass]<10.^-16 &&
+      SameQ[dyneemaMaterialInput["MembraneSubstrateReferenceArealMass_kg_m2"],0.013]],
+    "UltrathinFilmMassIsUnchangedRegardlessOfMaterialNameText" -> TrueQ[
+      Abs[filmEffectiveMass-0.00071]<10.^-16 &&
+      SameQ[filmMaterialInput["MembraneSubstrateReferenceArealMass_kg_m2"],0.00071]],
+    "LegacySubstrateInputRenamedWithoutChangingReferenceMass" -> TrueQ[
+      AssociationQ[normalizedLegacySubstrateInputs] &&
+      SameQ[normalizedLegacySubstrateInputs["MembraneSubstrateReferenceArealMass_kg_m2"],0.013] &&
+      !KeyExistsQ[normalizedLegacySubstrateInputs,"MembraneSubstrateArealMass_kg_m2"]],
+    "AmbiguousLegacyAndReferenceSubstrateInputsRejected" -> FailureQ[ambiguousSubstrateInputs],
+    "UnknownICARUSCapacityPreservesDemandWithoutNumericClipping" -> TrueQ[
+      AssociationQ[capacityProbe] && capacityProbe["CapacityMode"]==="UnknownCapacity_UnclippedDemand" &&
+      capacityProbe["ForceCapacitySpecified"]===False && capacityProbe["HardwareQualified"]===False && capacityProbe["AppliedStationForces_N"]==={{3.,4.,0.}} &&
+      capacityProbe["SaturationByStation"]==={False}],
+    "FiniteICARUSCapacityClipsDemandAndIsExplicit" -> TrueQ[
+      AssociationQ[capacityFiniteProbe] && capacityFiniteProbe["CapacityMode"]==="ExplicitFinitePerStationLimit" &&
+      capacityFiniteProbe["ForceCapacitySpecified"]===True && capacityFiniteProbe["HardwareQualified"]===False &&
+      Abs[Norm[capacityFiniteProbe["AppliedStationForces_N"][[1]]]-3.]<10.^-12 &&
+      capacityFiniteProbe["SaturationByStation"]==={True}],
+    "InvalidICARUSCapacityRejected" -> FailureQ[capacityInvalidProbe],
+    "ControllerUnknownCapacityPreservesWrenchDemandButDoesNotQualify" -> TrueQ[
+      AssociationQ[controllerUnknownCapacity] && controllerUnknownCapacity["ForceCapacitySpecified"]===False && controllerUnknownCapacity["HardwareQualified"]===False &&
+      controllerUnknownCapacity["CapacityMode"]==="UnknownCapacity_UnclippedDemand" &&
+      Norm[controllerUnknownCapacity["AchievedWrench"]-UnitVector[6,1]]<10.^-10],
+    "ControllerFiniteCapacityAppliesStationForceLimit" -> TrueQ[
+      AssociationQ[controllerFiniteCapacity] && controllerFiniteCapacity["ForceCapacitySpecified"]===True && controllerFiniteCapacity["HardwareQualified"]===False &&
+      Max[Norm/@controllerFiniteCapacity["StationForces_N"]]<=0.01+10.^-12 &&
+      Or@@controllerFiniteCapacity["SaturationByStation"]],
+    "TaskGeometryPreflightReadyWhenItsInputsArePresent" -> TrueQ[
+      AssociationQ[taskGeometryReady] && taskGeometryReady["InputDependenciesSatisfied"]===True &&
+      taskGeometryReady["CalculationExecuted"]===False],
+    "TaskGeometryPreflightIdentifiesExactMissingInput" -> TrueQ[
+      AssociationQ[taskGeometryMissing] && taskGeometryMissing["MissingInputKeys"]==={"PerPoleProjectedArea_m2"}],
+    "TaskRadiationPreflightIncludesPoleSpecificDistanceAndIncidence" -> TrueQ[
+      AssociationQ[taskRadiationMissing] && MemberQ[taskRadiationMissing["MissingInputKeys"],"Distance_m"] &&
+      MemberQ[taskRadiationMissing["MissingInputKeys"],"IncidenceAngle_deg"]],
+    "UnknownTaskNameFailsClosed" -> FailureQ[taskUnknownName],
+    "IntegratedSimulationPreflightIncludesFullCoreAndPoleInputs" -> TrueQ[
+      AssociationQ[taskIntegratedMissing] &&
+      Sort[taskIntegratedMissing["RequiredInputKeys"]]===Sort[DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]]] &&
+      taskIntegratedMissing["CalculationExecuted"]===False && taskIntegratedMissing["IndependentTaskExecutionAvailable"]===False],
+    "SoftwareOnlyTestsHaveNoProjectInputDependencies" -> TrueQ[
+      AssociationQ[taskSoftwareOnly] && taskSoftwareOnly["InputDependenciesSatisfied"]===True &&
+      taskSoftwareOnly["RequiredInputCount"]===0],
+    "IndependentGeometryTaskExecutesWithoutFullCoreInputs" -> TrueQ[
+      AssociationQ[independentGeometryRun]&&TrueQ[independentGeometryRun["Executed"]]&&
+      independentGeometryRun["ExecutionMode"]==="IndependentPartialTask"&&
+      independentGeometryRun["OutputKeys"]==={"Geometry"}&&
+      independentGeometryRun["FullCoreCalculationExecuted"]===False],
+    "IndependentTaskStatusReportsFreshGeometryOutput" -> TrueQ[
+      AssociationQ[independentGeometryStatus]&&independentGeometryStatus["CalculationExecuted"]===True&&
+      independentGeometryStatus["IndependentTaskExecutionAvailable"]===True&&
+      independentGeometryStatus["ExecutedOutputKeys"]==={"Geometry"}],
+    "IndependentSurfaceMeshTaskExecutesAndStoresConvergedMesh" -> TrueQ[
+      AssociationQ[independentMeshRun]&&TrueQ[independentMeshRun["Executed"]]&&
+      AssociationQ[Lookup[independentDerived,"SurfaceMesh",Missing[]]]&&
+      Lookup[independentDerived["SurfaceMesh"],"PatchCount",0]===512&&
+      Abs[independentDerived["SurfaceMesh"]["QuadratureAreaRelativeError"]]<=0.01],
+    "IndependentOpticalRegisterTaskExecutesAndClosesEnergy" -> TrueQ[
+      AssociationQ[independentOpticsRun]&&TrueQ[independentOpticsRun["Executed"]]&&
+      AssociationQ[Lookup[independentDerived,"OpticalRegister",Missing[]]]&&
+      And@@(Abs[independentDerived["OpticalRegister"]["EnergyClosure"][#]-1.]<10.^-12&/@{"Reflector","PV"})],
+    "IndependentInitialRadiationTaskExecutesAndIsFresh" -> TrueQ[
+      AssociationQ[independentInitialRadiationRun]&&
+      TrueQ[independentInitialRadiationRun["Executed"]]&&
+      independentInitialRadiationRun["ExecutionMode"]==="IndependentPartialTask"&&
+      independentInitialRadiationRun["OutputKeys"]==={"Geometry","SurfaceMesh","OpticalRegister",
+        "InitialReferenceFrameIllumination","InitialRadiationLoads"}&&
+      AssociationQ[independentInitialRadiationStatus]&&
+      independentInitialRadiationStatus["CalculationExecuted"]===True],
+    "InitialRadiationForceAndMomentAreNumericThreeVectors" -> TrueQ[
+      VectorQ[Lookup[independentInitialRadiation,"NetRadiationForceVector_N",{}],NumericQ]&&
+      Length[independentInitialRadiation["NetRadiationForceVector_N"]]===3&&
+      VectorQ[Lookup[independentInitialRadiation,"NetRadiationMoment_Nm",{}],NumericQ]&&
+      Length[independentInitialRadiation["NetRadiationMoment_Nm"]]===3&&
+      Norm[independentInitialRadiation["NetRadiationForceVector_N"]]>0.],
+    "InitialRadiationOpticalLedgerCloses" -> TrueQ[
+      NumericQ[Lookup[independentInitialRadiation,"OpticalEnergyClosureResidual_W",Missing[]]]&&
+      Abs[independentInitialRadiation["OpticalEnergyClosureResidual_W"]]<=
+        10.^-8 Max[Abs[independentInitialRadiation["TotalIncidentOpticalPower_W"]],$MinMachineNumber]],
+    "InitialRadiationExplicitlyPrecedesCOMAndAttitudeCorrection" -> TrueQ[
+      Lookup[independentInitialRadiation,"FinalCOMAndInitialAttitudeCorrectionApplied",True]===False&&
+      Lookup[independentInitialRadiation,"ForceTorqueReferenceFrame",""]===
+        "Pole-local geometry origin before centre-of-mass and initial-attitude correction"&&
+      Lookup[independentInitialRadiation,"FullCoreCalculationExecuted",True]===False],
+    "IndependentTasksDoNotMarkFullCoreCalculationComplete" -> TrueQ[
+      AssociationQ[independentPoleState]&&MissingQ[Lookup[independentPoleState,"LastRun",Missing["NotRun"]]]],
+    "IndependentTasksLeavePole2Untouched" -> TrueQ[
+      Lookup[independentTaskFixture,"Pole2StateAbsent",False]===True],
+    "IndependentTasksPreserveExplicitSharedInputRegister" -> TrueQ[
+      Lookup[independentTaskFixture,"SharedInputFixtureRetained",False]===True],
+    "Pole2OperatingChangePreservesPole1GeometryCache" -> TrueQ[
+      AssociationQ[Lookup[independentTaskFixture,"Pole2Update",$Failed]]&&
+      AssociationQ[Lookup[independentTaskFixture,"GeometryStatusAfterPole2Update",<||>]]&&
+      independentTaskFixture["GeometryStatusAfterPole2Update"]["CalculationExecuted"]===True],
+    "SharedGeometryChangeInvalidatesIndependentTaskCache" -> TrueQ[
+      AssociationQ[Lookup[independentTaskFixture,"SharedUpdate",$Failed]]&&
+      AssociationQ[Lookup[independentTaskFixture,"GeometryStatusAfterSharedUpdate",<||>]]&&
+      independentTaskFixture["GeometryStatusAfterSharedUpdate"]["CalculationExecuted"]===False&&
+      independentTaskFixture["PoleStatesEmptyAfterSharedUpdate"]===True],
+    "TaskStatusCannotReadOtherPoleDuringExecution" -> FailureQ[taskCrossPoleBlocked],
+    "UnknownTaskNamePropagatesFailureThroughPublicAPI" -> FailureQ[taskUnknownPublic],
+    "StationForceAndTorqueDemandSummaryMatchesIndependentCrossProducts" -> TrueQ[
+      AssociationQ[stationDemandProbe] && stationDemandProbe["MaximumStationForceByStation_N"]==={3.,4.} &&
+      stationDemandProbe["MaximumStationTorqueByStation_Nm"]==={3.,8.} &&
+      Abs[stationDemandProbe["MaximumStationTorque_Nm"]-8.]<10.^-12],
+    "StationDemandSummaryRejectsMismatchedStationCounts" -> FailureQ[stationDemandInvalidProbe],
+    "InputRequirementsClassifiesApprovedAssumptionsAndUnresolvedItemsSeparately" -> TrueQ[
+      AssociationQ[requirementsProbe] && requirementsProbe["Ready"] === True &&
+      requirementsProbe["MissingValueCount"] === 0 &&
+      requirementsProbe["UnclassifiedRequiredInputs"] === {} &&
+      And @@ (requirementsProbe["UnclassifiedPoleOperatingInputs"][#] === {} & /@ $Phase1PoleIDs) &&
+      requirementsProbe["RequiredValuesMustBeExplicit"] === False &&
+      AssociationQ[requirementsProbe["ApprovedAssumptions"]] &&
+      Length[requirementsProbe["UnresolvedEngineeringAndQualificationItems"]] >= 1]
   |>;
   checks = Join[checks, bisectionChecks];
   stateAfter = $Phase1State;
@@ -2126,19 +2762,20 @@ phase1FreeRotationTrajectoryCurrent[durationS_:Automatic] := Module[
 ];
 
 phase1WobbleSimulationCurrent[durationS_:Automatic] := Module[
-  {in=Phase1GetInputs[],dyn,inertiaMat,q0,w0,kMat,dMat,omegaN,ts,sol,computed,sampleTimes,samples,
-   angleOf,maxAngle,maxRate,quaternionNormError,initialEnergy,finalEnergy,dampedEnergy,
+  {in=Phase1GetInputs[],dyn,inertiaMat,q0,w0,linearization,dMat,ts,sol,computed,sampleTimes,samples,
+   angleOf,maxAngle,maxRate,quaternionNormError,maxGravityTorque,stableReferenceQ,
    t,q0f,q1f,q2f,q3f,w1f,w2f,w3f,qFunctions,wFunctions,qVector,wVector,
    qDerivative,wDerivative,equations,dependentFunctions,qAt,wAt},
   computed=phase1EnsureCalculated[];If[FailureQ[computed],Return[computed]];
   dyn=Phase1GetResult["DynamicInitialConditions"];
   If[!AssociationQ[dyn],Return[Failure["DynamicInitialConditionsUnavailable",<||>]]];
-  If[in["WobbleRestoringModel"] =!= "LinearSecondOrderAttitudeRestoring",
+  If[in["WobbleRestoringModel"] =!= "NonlinearGravityGradientRigidBody",
     Return[Failure["UnsupportedWobbleRestoringModel",<|"SelectedModel"->in["WobbleRestoringModel"]|>]]];
   inertiaMat=dyn["InertiaTensor_kg_m2"];q0=dyn["InitialQuaternion"];w0=dyn["InitialAngularVelocity_rad_s"];
-  omegaN=2. Pi/in["WobbleNaturalPeriod_s"];
-  kMat=omegaN^2 inertiaMat;
-  dMat=2. in["WobbleDampingRatio"] omegaN inertiaMat;
+  linearization=phase1GravityGradientLinearization[in,inertiaMat];
+  If[FailureQ[linearization],Return[linearization]];
+  dMat=linearization["DampingMatrix_Nm_s_per_rad"];
+  stableReferenceQ=TrueQ[linearization["LinearizedTransverseStabilityPass"]];
   ts=If[durationS===Automatic,in["DynamicCheckDuration_s"],durationS];
   If[!NumericQ[ts]||!TrueQ[ts>0.],Return[Failure["InvalidWobbleDuration",<|"Duration_s"->ts|>]]];
   qFunctions={q0f,q1f,q2f,q3f};wFunctions={w1f,w2f,w3f};
@@ -2149,7 +2786,8 @@ phase1WobbleSimulationCurrent[durationS_:Automatic] := Module[
   dependentFunctions=Join[qFunctions,wFunctions];
   equations=Join[
     Thread[qDerivative==phase1QuaternionRate[qVector,wVector]],
-    Thread[inertiaMat.wDerivative+Cross[wVector,inertiaMat.wVector]==-kMat.(2. qVector[[2;;4]])-dMat.wVector],
+    Thread[inertiaMat.wDerivative+Cross[wVector,inertiaMat.wVector]==
+      phase1GravityGradientTorqueBody[in,inertiaMat,qVector]-dMat.wVector],
     Thread[{q0f[0.],q1f[0.],q2f[0.],q3f[0.]}==q0],
     Thread[{w1f[0.],w2f[0.],w3f[0.]}==w0]
   ];
@@ -2158,7 +2796,8 @@ phase1WobbleSimulationCurrent[durationS_:Automatic] := Module[
     MaxSteps->in["DynamicMaxSteps"]],$Failed];
   If[sol===$Failed,
     phase1StoreResult["WobbleSimulation",<|"Solution"->$Failed,"SolverSucceeded"->False,
-      "Status"->"Scalar-component damped wobble integration failed; no bounded-wobble result is claimed."|>],
+      "GravityGradientLinearization"->linearization,
+      "Status"->"Nonlinear gravity-gradient rigid-body integration failed; no bounded-wobble or stability result is claimed."|>],
     qAt[tt_?NumericQ]:=(#[tt]&/@Take[sol,4]);
     wAt[tt_?NumericQ]:=(#[tt]&/@Take[sol,-3]);
     sampleTimes=Subdivide[0.,ts,in["DynamicSampleCount"]];
@@ -2167,22 +2806,19 @@ phase1WobbleSimulationCurrent[durationS_:Automatic] := Module[
     maxAngle=Max[angleOf/@samples[[All,1]]];
     maxRate=Max[Norm/@samples[[All,2]]];
     quaternionNormError=Max[Abs[(Norm/@samples[[All,1]])-1.]];
-    initialEnergy=0.5 w0.inertiaMat.w0+0.5 (2. q0[[2;;4]]).kMat.(2. q0[[2;;4]]);
-    dampedEnergy=Table[0.5 samples[[i,2]].inertiaMat.samples[[i,2]]+
-      0.5 (2. samples[[i,1,2;;4]]).kMat.(2. samples[[i,1,2;;4]]),{i,Length[samples]}];
-    finalEnergy=Last[dampedEnergy];
+    maxGravityTorque=Max[Norm/@Map[phase1GravityGradientTorqueBody[in,inertiaMat,#]&,samples[[All,1]]]];
     phase1StoreResult["WobbleSimulation",<|"Solution"->sol,"SolverSucceeded"->True,"Duration_s"->ts,
       "SampleTimes_s"->sampleTimes,"SampleStates"->samples,
       "MaximumAttitudeDeviation_rad"->maxAngle,"MaximumAngularRate_rad_s"->maxRate,
+      "MaximumGravityGradientTorque_Nm"->maxGravityTorque,
       "MaximumQuaternionNormalizationError"->quaternionNormError,
-      "InitialProxyMechanicalEnergy_J"->initialEnergy,"FinalProxyMechanicalEnergy_J"->finalEnergy,
-      "ProxyMechanicalEnergyNonIncreasing"->TrueQ[finalEnergy<=initialEnergy+in["PowerLedgerRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[initialEnergy]]],
+      "GravityGradientLinearization"->linearization,
+      "AlignedReferenceTransverseStabilityPass"->stableReferenceQ,
       "AttitudeWithinTolerance"->TrueQ[maxAngle<=in["AttitudeTolerance_rad"]],
       "AngularRateWithinTolerance"->TrueQ[maxRate<=in["AngularRateRecoveryTolerance_rad_s"]],
       "QuaternionNormalizationPass"->TrueQ[quaternionNormError<=in["QuaternionNormalizationTolerance"]],
-      "RestoringStiffnessProxy_Nm_rad"->kMat,"DampingProxy_Nms_rad"->dMat,
       "SelectedWobbleRestoringModel"->in["WobbleRestoringModel"],
-      "Model"->"Four scalar quaternion component equations and three scalar Euler rigid-body angular-velocity equations with explicitly selected linear second-order restoring and damping. The attitude restoring term and membrane response are reduced-order surrogates; proxy mechanical energy, attitude, angular rate and quaternion norm are checked."|>]
+      "Model"->"The simulation integrates the nonlinear classical first-order rigid-body gravity-gradient torque 3 GM/r^3 (u_body x I.u_body), using the current quaternion-derived Sun-radial direction in each pole's body frame. Small-angle natural modes are derived independently from that pole's inertia tensor and distance. Modal damping is applied only to stable oscillatory modes; unstable modes are not converted into artificial restoring modes. This approximation assumes body dimensions are small relative to heliocentric distance and does not represent higher-order distributed gravity, flexible-membrane wobble, or measured material damping."|>]
   ]
 ];
 
@@ -2364,7 +3000,7 @@ phase1ICARUSLoadPropagationCurrent[localPosition_List,localVelocity_List,attitud
 phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
   {in=Phase1GetInputs[],core,dyn,geo,mesh,mass,inertia,capacity,wrenchMatrix,arealMass,
    kp,kd,kt,kw,rawControl,actualControl,numericStateQ,numericVectorQ,rotationMatrix,
-   disturbanceState,sol,solutionAccessors,ts,sampleTimes,samples,maxRad,maxLat,maxAtt,maxReq,maxUsed,
+   disturbanceState,sol,solutionAccessors,ts,sampleTimes,samples,maxRad,maxLat,maxAtt,maxReq,maxUsed,maxReqTorque,
    saturation,struct,results,withinQ,disturbanceEnd,postIndices,recoveryIndex,
    recoveryTime,radialTol,lateralTol,angleOf,velTol,rateTol,baseAccelerationCrossCheck,
    centeredPatches,radialDirection,peakReq,peakApplied,quatNormError,loadIndices,loadRecords,
@@ -2373,6 +3009,7 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
    initialStateAcceleration,initialStateAttitude,patchForcesBody,combinedPatchForces,patchTractions,
    baseAccelerationScale,peakState,peakEnvironmentalForces,peakICARUSForces,peakCombinedPatchForces,peakPatchTractions,
    translationalAccelerationComponent,angularAccelerationComponent,environmentNow,controlNow,controlWrenchNow,
+   peakReqTorque,perStationPeakForce,perStationPeakTorque,rawStationForceSamples,demandSummary,
    t,x1f,x2f,x3f,v1f,v2f,v3f,q0f,q1f,q2f,q3f,w1f,w2f,w3f,
    xFunctions,vFunctions,qFunctions,wFunctions,xVector,vVector,qVector,wVector,
    xDerivative,vDerivative,qDerivative,wDerivative,dependentFunctions,equations,stateVector},
@@ -2409,7 +3046,9 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
     wrench=Join[forceBody,torqueBody];
     Partition[PseudoInverse[wrenchMatrix].wrench,3]
   ];
-  actualControl[state_?numericStateQ] := Map[If[Norm[#]>capacity,capacity Normalize[#],#]&,rawControl[state]];
+  actualControl[state_?numericStateQ] := Module[{limited=phase1ApplyStationCapacity[rawControl[state],capacity]},
+    If[FailureQ[limited],Throw[limited,"Phase1ControlCapacityFailure"],limited["AppliedStationForces_N"]]
+  ];
   disturbanceState[tt_?NumericQ,xState_?numericVectorQ,qState_?numericVectorQ,includeEvents_:True] := Module[
     {rot,localDistance,d,reflectorR,reflectorT,reflectorA,pvOptics,refOptics,opticsNow,
      timeInputs,rotatedPatches,rotatedMesh,rad,sun,radialVector,radialDirection,projectedWindArea,
@@ -2516,6 +3155,7 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
   If[sol===$Failed,
     results=<|"Solution"->$Failed,"BaseAccelerationConsistencyResidual_m_s2"->baseAccelerationCrossCheck,
       "RecoveryWithinLimit"->False,"ICARUSWithinCapacity"->False,
+      "ICARUSForceDemandWithinSpecifiedCapacity"->False,"ICARUSHardwareCapacityQualified"->False,
       "Status"->"NDSolveValue failed for the thirteen scalar state components. No dynamic acceptance is claimed."|>,
     solutionAccessors=<|"PositionFunctions"->Take[sol,3],"VelocityFunctions"->Take[sol,{4,6}],
       "AttitudeFunctions"->Take[sol,{7,10}],"AngularVelocityFunctions"->Take[sol,{11,13}]|>;
@@ -2530,10 +3170,17 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
     maxLat=Max[Norm/@samples[[All,1,2;;3]]];
     angleOf[qv_]:=Module[{qn=Normalize[qv]},2. ArcCos[Clip[Abs[qn[[1]]],{0.,1.}]]];
     maxAtt=Max[angleOf/@samples[[All,3]]];
-    peakReq=Table[Norm/@rawControl[samples[[i]]],{i,Length[samples]}];
+    rawStationForceSamples=Table[rawControl[samples[[i]]],{i,Length[samples]}];
+    demandSummary=phase1StationDemandSummary[dyn["StationPositionsLocal_m"],rawStationForceSamples];
+    If[FailureQ[demandSummary],Return[demandSummary]];
+    peakReq=demandSummary["StationForceMagnitudesBySample_N"];
+    peakReqTorque=demandSummary["StationTorqueMagnitudesBySample_Nm"];
+    perStationPeakForce=demandSummary["MaximumStationForceByStation_N"];
+    perStationPeakTorque=demandSummary["MaximumStationTorqueByStation_Nm"];
     peakApplied=Table[Norm/@actualControl[samples[[i]]],{i,Length[samples]}];
-    maxReq=Max[Flatten[peakReq]];maxUsed=Max[Flatten[peakApplied]];
-    saturation=AnyTrue[Flatten[peakReq],#>capacity+0.&];
+    maxReq=demandSummary["MaximumStationForce_N"];maxUsed=Max[Flatten[peakApplied]];
+    maxReqTorque=demandSummary["MaximumStationTorque_Nm"];
+    saturation=If[NumericQ[capacity]&&TrueQ[0.<capacity<Infinity],AnyTrue[Flatten[peakReq],#>capacity+0.&],False];
     loadIndices=DeleteDuplicates[Round[Subdivide[1,Length[samples],Min[in["DynamicLoadPropagationSampleCount"],Length[samples]-1]]]];
     loadRecords=Table[Module[
       {state=samples[[ii]],lm,environmentalForces,icarusForces,totalPatchForces,areas,traction,
@@ -2589,6 +3236,9 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
     results=<|"Solution"->solutionAccessors,"ScalarComponentInterpolatingFunctions"->sol,
       "SampleTimes_s"->sampleTimes,"SampleStates"->samples,
       "RequiredStationForceMagnitudesBySample_N"->peakReq,
+      "RequiredStationTorqueMagnitudesBySample_Nm"->peakReqTorque,
+      "MaximumRequiredStationForceByStation_N"->perStationPeakForce,
+      "MaximumRequiredStationTorqueByStation_Nm"->perStationPeakTorque,
       "AppliedStationForceMagnitudesBySample_N"->peakApplied,
       "DynamicLoadPropagationRecords"->loadRecords,
       "PeakLocalMembraneLoad_N"->peakLocalLoad,
@@ -2612,12 +3262,23 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
       "MaximumQuaternionNormalizationError"->quatNormError,
       "MaximumRadialDeviation_m"->maxRad,"MaximumLateralDeviation_m"->maxLat,
       "MaximumAttitudeDeviation_rad"->maxAtt,
-      "MaximumRequiredStationForce_N"->maxReq,"MaximumAppliedStationForce_N"->maxUsed,
+      "MaximumRequiredStationForce_N"->maxReq,"MaximumRequiredStationTorque_Nm"->maxReqTorque,"MaximumAppliedStationForce_N"->maxUsed,
       "ICARUSCapacityPerStation_N"->capacity,"ICARUSSaturationOccurred"->saturation,
+      "ICARUSCapacityMode"->If[capacity===Automatic,"UnknownCapacity_UnclippedDemand",
+        If[capacity===Infinity,"IdealizedUnboundedCapacity","ExplicitFinitePerStationForceLimit"]],
+      "ICARUSStationForceCapacitySpecified"->TrueQ[NumericQ[capacity]&&0.<capacity<Infinity],
+      "ICARUSForceDemandWithinSpecifiedCapacity"->TrueQ[NumericQ[capacity]&&0.<capacity<Infinity&&maxReq<=capacity],
+      "ICARUSWithinCapacity"->TrueQ[NumericQ[capacity]&&0.<capacity<Infinity&&maxReq<=capacity],
+      "ICARUSTorqueDemandCalculated"->True,
+      "ICARUSHardwareCapacityQualified"->False,
+      "ICARUSHardwareQualificationBlockers"->{"Only a per-station force limit is represented. Complete actuator torque/stroke/bandwidth/power ratings and qualification evidence are absent."},
+      "ControlSimulationQualification"->If[capacity===Automatic,
+        "Unclipped theoretical station-force demand is applied to the equations solely to expose required force and torque demand; actuator hardware is not qualified and dynamic recovery is not accepted.",
+        If[capacity===Infinity,"Idealized unbounded actuation assumption; actuator hardware is not qualified.",
+          "Control is clipped to the explicitly supplied per-station force limit; force-demand comparison is not complete actuator qualification. Torque/stroke/bandwidth/power limits remain unverified."]],
       "RadialDeviationWithinLimit"->TrueQ[maxRad<=radialTol],
       "LateralDeviationWithinLimit"->TrueQ[maxLat<=lateralTol],
       "AttitudeWithinLimit"->TrueQ[maxAtt<=in["AttitudeTolerance_rad"]],
-      "ICARUSWithinCapacity"->TrueQ[maxReq<=capacity+0.],
       "DynamicLoadMapForceAndMomentConserved"->TrueQ[
         maxLoadMapResidual<=in["ICARUSLoadMapRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Abs[maxUsed]] &&
         maxLoadMapMomentResidual<=in["ICARUSLoadMapRelativeTolerance"] Max[Sqrt[$MinMachineNumber],Norm[loadMapAtPeak["StationMomentTotal_Nm"]]]],
@@ -2637,6 +3298,110 @@ phase1IntegratedSimulationCurrent[durationS_:Automatic] := Module[
 ];
 
 
+(* ------------------------------------------------------------------------
+   ICARUS MISSION-SPECIFIC REDESIGN SIZING — CONDITIONAL PHASE 1 SCREEN
+
+   Method: first run this pole's integrated dynamics with an unbounded/unknown
+   capacity to expose raw station-force demand. Derive a common per-station
+   force target from the largest individual-station demand plus the user-approved
+   10% reserve. Then rerun only this same pole in a temporary state with that
+   finite target and check for saturation and modeled recovery. The temporary
+   capacity is never written into the live shared input register.
+
+   The 10% reserve is a provisional synthetic screening margin selected under the user-approved
+   modest-variation policy; the user approved the approach, not this specific percentage. This routine
+   does NOT infer actuator-local drive torque from r x F: reported station
+   moments are wrench contributions about the assembly COM. Drive torque,
+   stroke, slew rate, actual actuator bandwidth/plant, duty cycle, power,
+   thermal behaviour, lifetime and hardware qualification remain future design
+   gates. A pass is model-based sizing evidence only, never hardware qualification.
+   ------------------------------------------------------------------------ *)
+phase1ICARUSRedesignSizingCurrent[] := Module[
+  {in=Phase1GetInputs[],reserve,unbounded,requiredByStation,target,limited,checks,
+   bandwidthHz,controllerNaturalFrequency,assumptionApproved,stationMoments,
+   result,liveSnapshot=$Phase1State,finiteState,unboundedState},
+  If[!TrueQ[Lookup[in,"ICARUSRedesignFeasibilityApproved",False]],
+    Return[Failure["ICARUSRedesignAssumptionNotApproved",<|"Pole"->$Phase1CurrentPole|>]]];
+  reserve=Lookup[in,"ICARUSRedesignForceReserveFraction",Missing["ReserveUnavailable"]];
+  If[!NumericQ[reserve]||!TrueQ[0.<=reserve<=0.10],
+    Return[Failure["InvalidICARUSRedesignReserve",<|"Value"->reserve,"AllowedRange"->{0.,0.10}|>]]];
+  (* Block-local clone forces an unbounded-demand run even if a prior user-entered
+     rating exists. No live input or the other pole's operating state is changed. *)
+  unboundedState=Join[liveSnapshot,<|
+    "Inputs"->Join[in,<|"ICARUSStationForceCapacity_N"->Automatic|>],
+    "Derived"-><||>,"Results"-><||>,"LastRun"->Missing["TemporaryUnboundedSizingRun"]|>];
+  unbounded=Block[{$Phase1State=unboundedState},phase1IntegratedSimulationCurrent[]];
+  If[FailureQ[unbounded],Return[unbounded]];
+  requiredByStation=Lookup[unbounded,"MaximumRequiredStationForceByStation_N",Missing["StationDemandUnavailable"]];
+  If[!ListQ[requiredByStation]||requiredByStation==={}||!VectorQ[requiredByStation,NumericQ]||!And@@(TrueQ[#>=0.]&/@requiredByStation),
+    Return[Failure["InvalidICARUSStationDemand",<|"Demand"->requiredByStation,"Pole"->$Phase1CurrentPole|>]]];
+  target=Max[requiredByStation](1.+reserve);
+  If[!TrueQ[NumericQ[target]&&target>0.&&target<Infinity],
+    Return[Failure["InvalidDerivedICARUSForceTarget",<|"Target_N"->target|>]]];
+  (* Re-run the same pole with a synthetic finite rating equal to the derived
+     target. A scalar rating is applied to each station; target is sized to the
+     highest per-station demand, so every station gets at least the same reserve. *)
+  finiteState=Join[liveSnapshot,<|
+    "Inputs"->Join[in,<|"ICARUSStationForceCapacity_N"->target|>],
+    "Derived"-><||>,"Results"-><||>,"LastRun"->Missing["TemporaryFiniteCapacitySizingRun"]|>];
+  limited=Block[{$Phase1State=finiteState},phase1IntegratedSimulationCurrent[]];
+  If[FailureQ[limited],Return[limited]];
+  controllerNaturalFrequency=Max[Sqrt[Max[0.,in["ControllerTranslationKp_perS2"]]],
+    Sqrt[Max[0.,in["ControllerAttitudeKp_perS2"]]]];
+  (* First-order actuator bandwidth heuristic: target at least 5x the
+     closed-loop natural frequency. This is a design starting point, not a
+     measurement or validated control/actuator plant model. *)
+  bandwidthHz=5. controllerNaturalFrequency/(2. Pi);
+  stationMoments=Lookup[limited,"MaximumRequiredStationTorqueByStation_Nm",Missing["MomentDemandUnavailable"]];
+  assumptionApproved=TrueQ[in["ICARUSRedesignFeasibilityApproved"]];
+  checks=<|
+    "ApprovedRedesignPremise"->assumptionApproved,
+    "FiniteForceTargetDerivedFromThisPoleDemand"->TrueQ[target>=Max[requiredByStation]],
+    "ReserveWithinProvisionalScreeningBound"->TrueQ[reserve<=0.10],
+    (* IntegratedSimulation reports the applied capacity under its public result key,
+       ICARUSCapacityPerStation_N (the input register key is not copied verbatim). *)
+    "FiniteCapacityAppliedInTemporaryRun"->TrueQ[Lookup[limited,"ICARUSCapacityPerStation_N",Automatic]===target],
+    "NoStationForceSaturation"->TrueQ[!TrueQ[Lookup[limited,"ICARUSSaturationOccurred",True]]],
+    "ForceDemandWithinDerivedTarget"->TrueQ[Lookup[limited,"MaximumRequiredStationForce_N",Infinity]<=target],
+    "DynamicLoadMapConserved"->TrueQ[Lookup[limited,"DynamicLoadMapForceAndMomentConserved",False]],
+    "QuaternionNormalizationMaintained"->TrueQ[Lookup[limited,"MaximumQuaternionNormalizationError",Infinity]<=in["QuaternionNormalizationTolerance"]],
+    "RecoveryWithinConfiguredLimit"->TrueQ[Lookup[limited,"RecoveryWithinLimit",False]],
+    "NoLiveInputsModified"->TrueQ[SameQ[$Phase1State,liveSnapshot]],
+    "OtherPoleStateNotReadOrModified"->TrueQ[
+      Keys[Lookup[$Phase1State,"PoleOperatingInputs",<||>]]==={$Phase1CurrentPole} &&
+      Keys[Lookup[$Phase1State,"PoleStates",<||>]]==={$Phase1CurrentPole}]
+  |>;
+  result=<|
+    "Pole"->$Phase1CurrentPole,
+    "Status"->If[And@@(TrueQ/@Values[checks]),"ConditionalModelBasedRedesignSizingPass","RedesignTargetCalculated; one or more modeled control/recovery checks remain open"],
+    "Classification"->"UserApprovedRedesignFeasibilityPremiseWithProvisionalSyntheticReserveAndDerivedPerPoleDemand; not current hardware capability or qualification",
+    "ReserveNumericalValueClassification"->"Provisional model-selected 10% screening value under the user-authorized modest-variation policy; not a separately user-specified percentage.",
+    "RedesignFeasibilityAssumptionApproved"->assumptionApproved,
+    "ExistingHardwareCapacity_N"->in["ICARUSStationForceCapacity_N"],
+    "ExistingHardwareCapabilityKnown"->NumericQ[in["ICARUSStationForceCapacity_N"]],
+    "UnboundedRequiredStationForceByStation_N"->requiredByStation,
+    "UnboundedMaximumRequiredStationForce_N"->Lookup[unbounded,"MaximumRequiredStationForce_N",Missing["Unavailable"]],
+    "ApprovedForceReserveFraction"->reserve,
+    "ConditionalFuturePerStationForceTarget_N"->target,
+    "PerStationForceTarget_N"->ConstantArray[target,Length[requiredByStation]],
+    "RequiredStationMomentContributionAboutCOMByStation_Nm"->stationMoments,
+    "MomentDefinition"->"r x F contribution about assembly centre of mass; not actuator-local drive torque.",
+    "ProvisionalMinimumActuatorBandwidth_Hz"->bandwidthHz,
+    "BandwidthHeuristic"->"5x controller natural frequency divided by 2 pi; preliminary target only, requiring measured/identified actuator plant and closed-loop margin analysis.",
+    "LimitedDynamicSimulation"->KeyDrop[limited,{"Solution","ScalarComponentInterpolatingFunctions","SampleStates"}],
+    "Checks"->checks,
+    "AllSizingChecksPass"->TrueQ[And@@(TrueQ/@Values[checks])],
+    "UnresolvedActuatorDesignProperties"->{"Drive-local torque and gearing","Stroke and slew rate","Measured force-frequency response and phase margin","Duty cycle","Power draw and energy storage","Thermal limits and thermal rejection","Lifetime, wear and radiation degradation","Mechanical attachment and load transfer qualification"},
+    "HardwareQualification"->False,
+    "LiveInputsModified"->False,
+    "OtherPoleOperatingStateAccessed"->False,
+    "Method"->"Independent-pole unbounded force demand, provisional 10% synthetic reserve, then same-pole finite-capacity transient rerun in an isolated temporary state."|>;
+  phase1StoreResult["ICARUSRedesignSizing",result];
+  phase1Audit["ICARUSRedesignSizingCompleted",<|"Pole"->$Phase1CurrentPole,
+    "Target_N"->target,"ReserveFraction"->reserve,"AllSizingChecksPass"->result["AllSizingChecksPass"]|>];
+  result
+];
+
 (* ========================================================================
    7. VALIDATION, ACCEPTANCE, REPORT AND HANDOFF
    ======================================================================== *)
@@ -2655,7 +3420,7 @@ phase1RunSelfTestsCurrent[] := Module[{results=phase1EnsureCalculated[],validati
     "MITTemperatureAdjustedEfficiencyIndependentRecalculation",
     "IntegratedPVTemperatureAdjustedEfficiencyIndependentRecalculation",
     "ProjectTargetTemperatureAdjustedEfficiencyIndependentRecalculation",
-    "FreeStandingSpecificPowerImpliedEfficiencyDoesNotExceedFreeStandingReference",
+    "PVCellArraySpecificPowerImpliedEfficiencyDoesNotExceedFreeStandingReference",
     "IntegratedSpecificPowerImpliedEfficiencyDoesNotExceedIntegratedReference",
     "PVSpecificPowerIrradianceScalingIndependentlyRecalculated",
     "ConditionedPowerIndependentRecalculation","PVTechnologyScenarioMassesIndependentlyRecalculated",
@@ -2674,7 +3439,7 @@ phase1RunSelfTestsCurrent[] := Module[{results=phase1EnsureCalculated[],validati
     "TransferAndConditioningConnected","StationMassCountedOnce","StationCoordinatesWithinPlanform","MembraneSubstrateIncludedInMassLedger","PerimeterHardwareMassIncludedInMassLedger",
     "TotalMassComponentLedgerCloses","InertiaTensorPositive","DistributedMassConservation",
     "CenterOfMassFinite","QuaternionNormalized","ICARUSWrenchMatrixFullRank",
-    "StructuralScreenCalculated","ICARUSCapacityUserInputNumeric","ICARUSWrenchAllocatorReconstructsDemand",
+    "StructuralScreenCalculated","ICARUSStationForceCapacityInputValid","ICARUSWrenchAllocatorReconstructsDemand",
     "ICARUSLoadMapConservesStationForce","ICARUSLoadMapConservesStationMoment",
     "ICARUSPerStationLoadWeightsNormalize"};
   missingTests=Complement[testNames,Keys[validation]];
@@ -2712,7 +3477,7 @@ phase1RunReportCurrent[] := Module[{results=phase1EnsureCalculated[],in=Phase1Ge
     "EquilibriumScope"->"One independently operated pole system; evaluated separately for Pole1 and Pole2.",
     "WholeTwoPoleSystemEquilibriumEvaluated"->False,
     "CentralInputCount"->Length[Keys[in]],"CentralInputRegister"->in,
-    "SelectedSharedDesignMaterialModelForms"->KeyTake[in,{"PVLayoutModel","GeometryProfileModel","MassDistributionModel","ICARUSLoadTransferModel","MembraneStructuralModel","WobbleRestoringModel","ICARUSStationCountScope"}],
+    "SelectedSharedDesignMaterialModelForms"->KeyTake[in,{"PVLayoutModel","GeometryProfileModel","MassDistributionModel","ICARUSLoadTransferModel","MembraneStructuralModel","ICARUSStationCountScope"}],
     "SelectedPoleSpecificEnvironmentAndReferenceMotionForms"->KeyTake[in,{"FlareTemporalProfile","CMETemporalProfile","HeliocentricReferenceMotionMode"}],
     "HeliocentricReferenceMotionScope"-><|"SelectedMode"->in["HeliocentricReferenceMotionMode"],
       "OrbitalPropagationImplemented"->False,"RotatingFrameCouplingImplemented"->False,
@@ -2721,31 +3486,26 @@ phase1RunReportCurrent[] := Module[{results=phase1EnsureCalculated[],in=Phase1Ge
     "SelectedPoleSpecificControllerSettings"->KeyTake[in,{"ControllerTranslationKp_perS2","ControllerTranslationKd_perS","ControllerAttitudeKp_perS2","ControllerAttitudeKd_perS"}],
     "OptimizerVariables"->{"Distance_m","PVFraction"},
     "OptimizerIndependentGridResolution"->{in["OptimizerGridPointCount"]+1,in["OptimizerCoverageGridPointCount"]+1},
-    "OptionalInputSourceNotes"->$Phase1State["InputNotes"],
-    "MissingRequiredInputProvenance"->{},
     "DefaultInputAudit"->phase1DefaultInputAudit[],
+    "ApprovedAssumptions"->Phase1ApprovedAssumptions[],
     "InputReadiness"->Phase1InputStatus[],
-    "OptionalSourceNotes"-><|"SharedDesignAndMaterial"->Lookup[Phase1GetState[],"InputNotes",<||>]|>,
     "DerivedOutputs"->$Phase1State["Derived"],
     "CalculationOutputs"->results,
     "Validation"->results["Validation"],
     "CalculationManifest"->$Phase1State["LastRun"]["CalculationManifest"],
     "AuditLog"->$Phase1State["AuditLog"],
-    "ExecutionStatement"->"This report is generated by Mathematica from the shared design/material register and the active pole's independent operating-input register. Pole1 and Pole2 execute in separate state, optional source notes, cache and result contexts. Only PoleCount = 2 is a project-specific default; all other project-specific values must be explicitly entered; source notes are optional.",
-    "OverriddenReferenceConstantSourceNoteRequired"->False,
-    "SourceNotesOptional"->True,
+    "ExecutionStatement"->"This report is generated by Mathematica from the shared design/material assumption register and the active pole's independent operating-input assumption register. User-approved assumptions are identified in ApprovedAssumptions and are not represented as measured or qualified properties. Pole1 and Pole2 execute in separate state, cache and result contexts; only scalar reporting outputs may be summed after independent calculations.",
     "CachedValuesAreAcceptedOnlyForExactInputSnapshots"->True,
-    "OptionalSourceNotesAffectCacheFreshness"->False,
     "CentralStateInputSnapshotHash"->$Phase1State["LastRun"]["InputSnapshotHash"],
     "CentralStateSnapshotMatchesCurrentInputs"->TrueQ[$Phase1State["LastRun"]["InputSnapshot"]===in],
     "CentralStateSnapshotHashMatchesCurrentInputs"->TrueQ[$Phase1State["LastRun"]["InputSnapshotHash"]===Hash[in,"SHA256"]]|>]
 ];
 
 phase1Phase2HandoffCurrent[] := phase1StoreResult["Phase2Handoff",<|
-  "Phase1Outputs"->{"Central numeric input/optional source notes and model-form register","Stored geometry and local surface mesh","Local optical closure and radiation force/moment quadrature","Independent analytic-versus-numerical momentum coefficient check","Nominal solar-parameter consistency calculations (GM-to-mass reconstruction is algebraic; luminosity-to-irradiance comparison checks nominal-reference consistency, not independent measurements)","Mass ledger including base membrane substrate, reflective coating, PV, wiring, separately modelled perimeter hardware, deferred mass and configured stations; integrated PV fabric overlap handled by an explicit central policy","Natural vector equilibrium residual","Four PV performance scenarios and delivered power ledger","Radiative thermal boundary and thermal residual","Configured-station wrench allocator and user-supplied per-station force capacity","Force- and moment-conserving station-to-membrane load mapping with dynamic patch-traction screening","Rigid-body quaternion/Euler free rotation and integrated 3-D simulation","Disturbance/degradation scenarios","Patch-pressure-driven selected membrane substrate tensioned-membrane structural screening calculation","Acceptance/validation manifest and audit history"},
+  "Phase1Outputs"->{"Central numeric input and model-form register","Stored geometry and local surface mesh","Local optical closure and radiation force/moment quadrature","Independent analytic-versus-numerical momentum coefficient check","Nominal solar-parameter consistency calculations (GM-to-mass reconstruction is algebraic; luminosity-to-irradiance comparison checks nominal-reference consistency, not independent measurements)","Mass ledger including base membrane substrate, reflective coating, PV, wiring, separately modelled perimeter hardware, deferred mass and configured stations; integrated PV cell array overlap handled by an explicit central policy","Natural vector equilibrium residual","Four PV performance scenarios and delivered power ledger","Radiative thermal boundary and thermal residual","Configured-station wrench allocator and user-supplied per-station force capacity","Force- and moment-conserving station-to-membrane load mapping with dynamic patch-traction screening","Rigid-body quaternion/Euler free rotation and integrated 3-D simulation","Disturbance/degradation scenarios","Patch-pressure-driven selected membrane substrate tensioned-membrane structural screening calculation","Acceptance/validation manifest and audit history"},
   "Phase2MustReplaceOrValidate"->{"Actual deployed CAD/profile and material layup","Measured reflector/PV spectral R/A/T and diffuse reflectance","Qualified PV efficiency/temperature/radiation curve","Measured selected substrate/composite areal mass, modulus, strength, creep and fatigue","Nonlinear membrane/structural finite-element or validated reduced-order model","Measured ICARUS force/torque/stroke/bandwidth/power ratings","Distributed wiring, joints, perimeter and equipment masses","Thermal conduction, transient heat capacity, view factors and hot spots","Validated flare/CME/SEP histories","Full electrical topology, resistance, current/voltage and power electronics"},
   "DeferredByProjectInstruction"->{"Magnetron mass","Capacitor mass","Resistor/circuit mass","Detailed complete component mass distribution"},
-  "HandoffStatus"->"Phase 1 performs internally connected numerical screening and reports user-input-driven results; no output is a flight qualification or accepted engineering design until Phase 2 replaces the stated approximations."|>];
+  "HandoffStatus"->"Phase 1 performs internally connected numerical screening using user-approved assumptions and explicit unresolved qualification gates. No output is a flight qualification or accepted engineering design until Phase 2 replaces or validates the stated assumptions with measured/qualified project data."|>];
 
 phase1StabilityCriteriaCurrent[] := Module[{in,g,computed,result},
   computed=phase1EnsureCalculated[];
@@ -2763,12 +3523,12 @@ phase1StabilityCriteriaCurrent[] := Module[{in,g,computed,result},
 ];
 
 phase1RunFullAssessmentCurrent[] := Module[
-  {base,originalInputs,originalProvenance,originalResults,eq,floor,disturbance,
+  {base,originalInputs,originalResults,eq,floor,disturbance,
    free,wobble,baselineDynamic,optimization,handoff,assessment,report,optimizedDynamic,
    stability,selfTests,rootFound=False,rootExact=False},
   base=Phase1ComputeAll[];
   If[FailureQ[base],Return[base]];
-  originalInputs=Phase1GetInputs[];originalProvenance=Lookup[$Phase1State,"InputNotes",<||>];
+  originalInputs=Phase1GetInputs[];
   originalResults=Phase1GetResults[];
   eq=Phase1SolveExactEquilibrium[];
   If[FailureQ[eq],Return[eq]];
@@ -2786,7 +3546,7 @@ phase1RunFullAssessmentCurrent[] := Module[
   optimizedDynamic=If[AssociationQ[optimization],Lookup[optimization,"DynamicSimulation",Missing["NoOptimizedDynamicRun"]],Missing["NoOptimizedDynamicRun"]];
   handoff=Phase1Phase2Handoff[];
   assessment=<|"Revision"->"v11.27 centralized full assessment",
-    "OriginalInputSnapshot"->originalInputs,"OriginalInputProvenanceSnapshot"->originalProvenance,
+    "OriginalInputSnapshot"->originalInputs,
     "OriginalCalculationOutputs"->originalResults,"ExactEquilibriumDiagnosticSolve"->eq,
     "ThermalDistanceFloor"->floor,"DisturbanceScenarios"->disturbance,
     "StabilityCriteria"->stability,"SelfTests"->selfTests,"FreeRotationTrajectory"->free,"WobbleSimulation"->wobble,
@@ -2810,35 +3570,7 @@ phase1RunFullAssessmentCurrent[] := Module[
    8. INTERACTIVE PANEL — UI writes to the same central input register
    ======================================================================== *)
 
-Phase1InteractivePanel[] := DynamicModule[
-  {working=Phase1GetInputs[],sources=Lookup[$Phase1State,"InputNotes",<||>],
-   result=Missing["NotRun"],missing,projectKeys,sourceUpdates},
-  projectKeys=phase1ProjectInputKeys[];
-  sources=AssociationThread[projectKeys,Table[Lookup[sources,key,""],{key,projectKeys}]];
-  Column[{
-    Style["PHASE 1 — POLAR COLLECTOR / v11.27",Bold],
-    Style["Enter all missing project, model, acceptance and numerical-control values in SI units where applicable. Source notes are optional; no unprovided design/material values are prefilled."],
-    Dynamic[missing=Phase1InputStatus[];
-      If[TrueQ[missing["Ready"]],Style["Required input values are complete.",Darker[Green]],
-        Style["Missing values: "<>ToString[Length[missing["MissingRequiredInputKeys"]]],Darker[Red]]]],
-    Pane[Dynamic@Grid[Prepend[
-      Table[{key,InputField[Dynamic[working[key]]],InputField[Dynamic[sources[key]]]},
-        {key,projectKeys}],
-      {"Project input key","Value (SI units)","Optional source note"}],
-      Alignment->Left],Scrollbars->{False,True}],
-    Row[{
-      Button["Apply inputs and optional source notes",
-        sourceUpdates=Association@Select[Normal[sources],StringQ[Last[#]]&&StringTrim[Last[#]]=!=""&];
-        result=Phase1SetInputs[Association@KeyTake[working,projectKeys],sourceUpdates],Method->"Queued"],
-      Button["Reload from central register",
-        working=Phase1GetInputs[];sources=AssociationThread[projectKeys,Table[Lookup[Lookup[$Phase1State,"InputNotes",<||>],key,""],{key,projectKeys}]],Method->"Queued"],
-      Button["Recalculate all model outputs",result=Phase1ComputeAll[],Method->"Queued"],
-      Button["Run validation tests",result=Phase1RunSelfTests[],Method->"Queued"]
-    }],
-    Dynamic[If[FailureQ[result],Style[ToString[result,InputForm],Darker[Red]],
-      If[MissingQ[result],"",Style["Last action completed. Check the returned report for its detailed status.",Darker[Green]]]]]
-  }]
-];
+
 
 (* ========================================================================
    9. TWO-POLE INDEPENDENT-SYSTEM ARCHITECTURE — v11.27
@@ -2859,8 +3591,10 @@ Phase1InteractivePanel[] := DynamicModule[
      per-pole value is multiplied by PoleCount to stand in for the other pole.
      No combined mechanical equilibrium is imposed.
 
-   PoleCount = 2 is the sole project-specific default. Pole1/Pole2 are neutral
-   system identifiers; no north/south orientation is inferred.
+   PoleCount = 2 is the fixed user-confirmed architecture. The shared and per-pole
+   registers contain user-approved assumptions, reported separately by
+   Phase1ApprovedAssumptions[]. These values are assumptions, not measured or qualified
+   inputs. Pole1/Pole2 are neutral identifiers; no north/south orientation is inferred.
    ======================================================================== *)
 
 (* Public API symbols and implementation helpers were initialized by the package header. *)
@@ -2879,6 +3613,48 @@ $Phase1PoleOperatingKeys = {
   "SolarWindProtonDensity_1AU_cm3", "SolarWindSpeed_1AU_m_s",
   "SEPDose_protons_cm2", "ReferenceMissionYears", "DynamicCheckDuration_s"
 };
+
+(* Task dependencies are an explicit execution/preflight register. Geometry,
+   SurfaceMesh, and OpticalRegister are pure setup calculations and may execute
+   independently when their listed inputs are complete. Every other registered
+   task retains the full-core execution gate. Dependency completeness is never
+   treated as evidence that a non-independent calculation has executed. *)
+$Phase1TaskInputDependencies = <|
+  "Geometry" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius"},
+  "SurfaceMesh" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MeshAreaRelativeTolerance"},
+  "OpticalRegister" -> {"ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","OpticalClosureTolerance"},
+  "InitialRadiationLoads" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MeshAreaRelativeTolerance","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","OpticalClosureTolerance","Distance_m","PVFraction","IncidenceAngle_deg","SolarLuminosity_W","SpeedOfLight_m_s","PowerLedgerRelativeTolerance"},
+  "RadiationLoads" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MeshAreaRelativeTolerance","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","OpticalClosureTolerance","Distance_m","PVFraction","IncidenceAngle_deg","InitialAttitudeSmallAngles_rad","SolarLuminosity_W","SpeedOfLight_m_s"},
+  "MassBalance" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MeshAreaRelativeTolerance","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","OpticalClosureTolerance","Distance_m","PVFraction","IncidenceAngle_deg","InitialAttitudeSmallAngles_rad","SolarLuminosity_W","SpeedOfLight_m_s","PrimaryPVScenario","PVCellArrayMassPolicy","PVArealMass_kg_m2","LegacymitArrayArealMass_kg_m2","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","WiringArealMass_kg_m2","OtherInstalledArealMass_kg_m2","PerimeterHardwareLinearMass_kg_m","ICARUSStationCount","ICARUSStationMass_kg","ICARUSStationPositionsLocal_m","DeferredEquipmentMass_kg","MassDistributionModel","PowerLedgerRelativeTolerance"},
+  "NaturalEquilibrium" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MeshAreaRelativeTolerance","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","OpticalClosureTolerance","Distance_m","PVFraction","IncidenceAngle_deg","InitialAttitudeSmallAngles_rad","InitialAngularVelocity_rad_s","InitialPositionLocal_m","InitialVelocityLocal_m_s","InitialVelocityHeliocentric_m_s","HeliocentricReferenceMotionMode","SolarLuminosity_W","SpeedOfLight_m_s","SolarGravitationalParameter_m3_s2","AstronomicalUnit_m","PowerLedgerRelativeTolerance","MembraneSubstrateMaterialName","SolarWindProtonDensity_1AU_cm3","SolarWindSpeed_1AU_m_s","ProtonMass_kg","CentimetersPerMeter","MassDistributionModel","PVCellArrayMassPolicy","PVArealMass_kg_m2","LegacymitArrayArealMass_kg_m2","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","WiringArealMass_kg_m2","OtherInstalledArealMass_kg_m2","PerimeterHardwareLinearMass_kg_m","ICARUSStationCount","ICARUSStationMass_kg","ICARUSStationPositionsLocal_m","DeferredEquipmentMass_kg","ExactEquilibriumRelativeTolerance"},
+  "Thermal" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","Distance_m","PVFraction","IncidenceAngle_deg","BothSidesRadiate","PVIRemissivity","ReflectorIRemissivity","PVTemperatureLimit_K","ReflectorTemperatureLimit_K","StefanBoltzmann_W_m2_K4","SolarLuminosity_W","PVThermalCouplingMaxIterations","ThermalResidualRelativeTolerance"},
+  "PVPerformance" -> {"PVLayoutModel","PrimaryPVScenario","PVScenarioOptions","PVFraction","Distance_m","IncidenceAngle_deg","PVArealMass_kg_m2","PVCellArraySpecificPower_W_kg","PVSpecificPowerReferenceIrradiance_W_m2","PVReferenceTemperature_K","PVCellReferenceEfficiency","PVCellArrayEfficiencyReference","ProjectTargetEfficiency","PVEfficiencyTemperatureCoefficient_perK","PVAnnualDegradationFraction","PVDegradationPerSEPReferenceDoseFraction","SEPDoseReference_protons_cm2","SEPDose_protons_cm2","ReferenceMissionYears","Year_s","PVTemperatureLimit_K"},
+  "PowerLedger" -> {"TransferEfficiency","ConditioningEfficiency","PVLayoutModel","PrimaryPVScenario","PVScenarioOptions","PVFraction","Distance_m","IncidenceAngle_deg","PVArealMass_kg_m2","PVCellArraySpecificPower_W_kg","PVSpecificPowerReferenceIrradiance_W_m2","PVReferenceTemperature_K","PVCellReferenceEfficiency","PVCellArrayEfficiencyReference","ProjectTargetEfficiency","PVEfficiencyTemperatureCoefficient_perK","PVAnnualDegradationFraction","PVDegradationPerSEPReferenceDoseFraction","SEPDoseReference_protons_cm2","SEPDose_protons_cm2","ReferenceMissionYears","Year_s","PVTemperatureLimit_K"},
+  "StructuralScreen" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","ReflectionModel","ReflectorSolarReflectivity","ReflectorSolarTransmissivity","PVSolarReflectivity","PVSolarTransmissivity","Distance_m","PVFraction","IncidenceAngle_deg","SolarWindProtonDensity_1AU_cm3","SolarWindSpeed_1AU_m_s","ProtonMass_kg","CentimetersPerMeter","MembraneStructuralModel","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","MembraneMaterialDensity_kg_m3","MembraneEffectiveYoungsModulus_Pa","MembraneEffectiveUltimateStrength_Pa","MembranePretension_N_m","StructuralSafetyFactor","MaximumDeflectionFractionOfRadius","CircularMembraneDeflectionCoefficient","WiringArealMass_kg_m2","PrimaryPVScenario","PVCellArrayMassPolicy"},
+  "GravityGradientModes" -> {"Distance_m","SolarGravitationalParameter_m3_s2","WobbleDampingRatio","MassDistributionModel","GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","PVFraction","PVArealMass_kg_m2","LegacymitArrayArealMass_kg_m2","PVCellArrayMassPolicy","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","WiringArealMass_kg_m2","ICARUSStationCount","ICARUSStationMass_kg","ICARUSStationPositionsLocal_m"},
+  "FreeRotationDynamicsCore" -> {"Distance_m","GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MassDistributionModel","PVFraction","PVArealMass_kg_m2","LegacymitArrayArealMass_kg_m2","PVCellArrayMassPolicy","ReflectorArealMass_kg_m2","MembraneSubstrateMaterialClass","MembraneSubstrateReferenceArealMass_kg_m2","WiringArealMass_kg_m2","ICARUSStationCount","ICARUSStationMass_kg","ICARUSStationPositionsLocal_m","InitialAttitudeSmallAngles_rad","InitialAngularVelocity_rad_s","DynamicCheckDuration_s","DynamicAccuracyGoal","DynamicPrecisionGoal","DynamicMaxSteps","DynamicSampleCount"},
+  "ICARUSLoadTransfer" -> {"GeometryProfileModel","PerPoleProjectedArea_m2","CapDepthToPlanformRadius","MeshRadialCount","MeshAzimuthCount","MassDistributionModel","ICARUSStationCount","ICARUSStationCountScope","ICARUSStationMass_kg","ICARUSStationPositionsLocal_m","ICARUSLoadTransferModel","MembraneLoadSpreadFractionOfRadius","ICARUSLoadMapRelativeTolerance"},
+  "IntegratedSimulation" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "JointOptimization" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "ComputeAll" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "FullAssessment" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "SolveExactEquilibrium" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "FreeRotation" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "Wobble" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "Validate" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "CalculationSelfTests" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "DisturbanceScenarios" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "ThermalDistanceFloor" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "ICARUSControlLaw" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "ICARUSLoadPropagation" -> DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],$Phase1PoleOperatingKeys]],
+  "SoftwareSelfTests" -> {}
+|>;
+
+(* These deterministic setup operations, together with the per-pole NaturalEquilibrium task,
+   are approved for independent execution. Dynamic, optimization, thermal, structural and
+   full assessment tasks remain behind their full-core execution gates. *)
+$Phase1IndependentlyExecutableTasks = {"Geometry", "SurfaceMesh", "OpticalRegister", "InitialRadiationLoads", "NaturalEquilibrium"};
+
 $Phase1OriginalDefaults = $Phase1DefaultInputs;
 $Phase1PoleInputDefaults = KeyTake[$Phase1OriginalDefaults, $Phase1PoleOperatingKeys];
 $Phase1DefaultInputs = KeyDrop[$Phase1DefaultInputs, $Phase1PoleOperatingKeys];
@@ -2887,9 +3663,7 @@ $Phase1DefaultInputs = KeyDrop[$Phase1DefaultInputs, $Phase1PoleOperatingKeys];
 $Phase1State = Join[$Phase1State, <|
   "SchemaVersion" -> $Phase1ModelVersion,
   "Inputs" -> KeyDrop[$Phase1State["Inputs"], $Phase1PoleOperatingKeys],
-  "InputNotes" -> KeyDrop[Lookup[$Phase1State, "InputNotes", <||>], $Phase1PoleOperatingKeys],
   "PoleOperatingInputs" -> AssociationThread[$Phase1PoleIDs, ConstantArray[$Phase1PoleInputDefaults, Length[$Phase1PoleIDs]]],
-  "PoleOperatingNotes" -> AssociationThread[$Phase1PoleIDs, ConstantArray[<||>, Length[$Phase1PoleIDs]]],
   "PoleStates" -> <||>,
   "LegacyInputArchive" -> <||>,
   "TwoPoleAggregate" -> <||>,
@@ -2901,10 +3675,9 @@ $Phase1ExecutingPole = False;
 $Phase1CurrentPole = None;
 $Phase1SelectedPole = "Pole1";
 
-(* Input readiness depends on required values only. Optional notes are metadata. *)
+(* Input readiness depends on required values only. *)
 phase1ProjectInputKeys[] := DeleteDuplicates[Join[Keys[$Phase1DefaultInputs],
   If[TrueQ[$Phase1ExecutingPole], $Phase1PoleOperatingKeys, {}]]];
-phase1ProvenanceRequiredKeys[] := {};
 
 phase1PoleInputStatus[pole_String] := Module[{inputs, missing},
   If[!MemberQ[$Phase1PoleIDs, pole],
@@ -2914,9 +3687,7 @@ phase1PoleInputStatus[pole_String] := Module[{inputs, missing},
   missing = Select[Keys[inputs], MissingQ[Lookup[inputs, #, Missing[]]] &];
   <|"Pole" -> pole, "Ready" -> (missing === {}),
     "MissingRequiredInputKeys" -> missing,
-    "OptionalSourceNotesMissing" -> {},
-    "InputCount" -> Length[inputs], "MissingRequiredInputCount" -> Length[missing],
-    "SourceNotesOptional" -> True|>
+    "InputCount" -> Length[inputs], "MissingRequiredInputCount" -> Length[missing]|>
 ];
 
 Phase1MissingRequiredInputs[] := If[TrueQ[$Phase1ExecutingPole],
@@ -2928,7 +3699,6 @@ Phase1MissingRequiredInputs[] := If[TrueQ[$Phase1ExecutingPole],
         MemberQ[$Phase1PoleOperatingKeys, #] &], {pole, $Phase1PoleIDs}]]
   ]
 ];
-Phase1MissingRequiredProvenance[] := {};
 
 Phase1InputStatus[pole_String] := If[TrueQ[$Phase1ExecutingPole] && pole =!= $Phase1CurrentPole,
   Failure["CrossPoleStatusReadBlocked", <|"ActivePole" -> $Phase1CurrentPole, "RequestedPole" -> pole|>],
@@ -2946,41 +3716,200 @@ Phase1InputStatus[] := If[TrueQ[$Phase1ExecutingPole],
         Select[poleStatus[pole]["MissingRequiredInputKeys"], MemberQ[$Phase1PoleOperatingKeys, #] &],
         {pole, $Phase1PoleIDs}]]];
     <|"Ready" -> (allMissing === {}), "MissingRequiredInputKeys" -> allMissing,
-      "OptionalSourceNotesMissing" -> {},
+      "MissingRequiredInputCount" -> Length[allMissing],
       "SharedInputCount" -> Length[$Phase1State["Inputs"]],
       "PoleOperatingInputCountPerPole" -> Length[$Phase1PoleOperatingKeys],
-      "PoleStatuses" -> poleStatus, "SourceNotesOptional" -> True|>
+      "PoleStatuses" -> poleStatus,
+      "ApprovedAssumptionCount" -> Phase1ApprovedAssumptions[]["ApprovedAssumptionCount"],
+      "ApprovedAssumptionsUsed" -> True,
+      "EngineeringAcceptance" -> "NotEstablishedByInputReadiness; evaluate each pole's calculations, constraints and qualification evidence separately.",
+      "InputReadinessScope" -> "All registered calculation inputs are populated by user-approved assumptions, reference/software definitions or per-pole derived values. This does not imply feasibility, stability, actuator capacity or engineering acceptance.",
+      "UnresolvedEngineeringAndQualificationItems" -> Phase1ApprovedAssumptions[]["UnresolvedEngineeringAndQualificationItems"]|>
   ]
 ];
 
-Phase1InputRequirements[] := Module[{status = Phase1InputStatus[]},
-  <|"Ready" -> TrueQ[status["Ready"]],
-    "SharedDesignMaterialInputCategories" -> $Phase1InputCategories,
-    "PoleOperatingInputCategories" -> $Phase1PoleOperatingInputCategories,
-    "MissingRequiredInputKeys" -> status["MissingRequiredInputKeys"],
-    "OptionalSourceNotesMissing" -> {},
-    "SourceNotesOptional" -> True,
-    "SourceNotesAreOptional" -> True,
-    "Rule" -> "Required project values must be entered before calculation. Source notes can be recorded but do not gate execution."|>
+phase1TaskInputStatusFromInputs[inputs_Association, task_String] := Module[
+  {keys, missing, unknown},
+  If[!KeyExistsQ[$Phase1TaskInputDependencies,task],
+    Return[Failure["UnknownTaskName",<|"Task"->task,"ValidTasks"->Keys[$Phase1TaskInputDependencies]|>]]
+  ];
+  keys=DeleteDuplicates[$Phase1TaskInputDependencies[task]];
+  missing=Select[keys,MissingQ[Lookup[inputs,#,Missing["InputKeyNotRegistered",#]]]&];
+  unknown=Complement[keys,Keys[inputs]];
+  <|"Task"->task,"InputDependenciesSatisfied"->(missing==={}&&unknown==={}),
+    "RequiredInputKeys"->keys,"MissingInputKeys"->missing,"UnregisteredInputKeys"->unknown,
+    "PresentInputCount"->(Length[keys]-Length[missing]-Length[unknown]),
+    "RequiredInputCount"->Length[keys],
+    "PreflightScope"->"Checks registered task inputs only. This report does not run a calculation; only the explicitly supported independent setup tasks can execute without the full-core gate.",
+    "CalculationExecuted"->False,"IndependentTaskExecutionAvailable"->MemberQ[$Phase1IndependentlyExecutableTasks,task]|>
 ];
 
+phase1TaskInputStatusForPole[pole_String,task_String] := Module[
+  {inputs,status,poleState,derived,manifest,taskRun,inputHash,executionFresh},
+  If[TrueQ[$Phase1ExecutingPole]&&pole=!=$Phase1CurrentPole,
+    Return[Failure["CrossPoleTaskStatusReadBlocked",<|"ActivePole"->$Phase1CurrentPole,"RequestedPole"->pole|>]]
+  ];
+  If[!MemberQ[$Phase1PoleIDs,pole],
+    Return[Failure["UnknownPoleID",<|"Pole"->pole,"ValidPoleIDs"->$Phase1PoleIDs|>]]
+  ];
+  inputs=If[TrueQ[$Phase1ExecutingPole],Phase1GetInputs[],Phase1GetPoleInputs[pole]];
+  If[FailureQ[inputs],Return[inputs]];
+  status=phase1TaskInputStatusFromInputs[inputs,task];
+  If[FailureQ[status],Return[status]];
+  poleState=If[TrueQ[$Phase1ExecutingPole],$Phase1State,
+    Lookup[Lookup[$Phase1State,"PoleStates",<||>],pole,<||>]];
+  derived=If[AssociationQ[poleState],Lookup[poleState,"Derived",<||>],<||>];
+  manifest=Lookup[derived,"IndependentTaskManifest",<||>];
+  taskRun=Lookup[manifest,task,<||>];
+  inputHash=Hash[KeyTake[inputs,status["RequiredInputKeys"]],"SHA256"];
+  executionFresh=AssociationQ[taskRun]&&
+    SameQ[Lookup[taskRun,"InputSnapshotHash",Missing[]],inputHash]&&
+    TrueQ[Lookup[taskRun,"FullCoreCalculationExecuted",False]===False];
+  Join[status,<|"Pole"->pole,
+    "CalculationExecuted"->TrueQ[executionFresh],
+    "IndependentTaskExecutionAvailable"->MemberQ[$Phase1IndependentlyExecutableTasks,task],
+    "ExecutedOutputKeys"->If[TrueQ[executionFresh],Lookup[taskRun,"OutputKeys",{}],{}],
+    "ExecutionFreshForCurrentInputs"->TrueQ[executionFresh]|>]
+];
+
+Phase1TaskInputStatus[] := Module[{pole=If[TrueQ[$Phase1ExecutingPole],$Phase1CurrentPole,$Phase1SelectedPole]},
+  AssociationMap[phase1TaskInputStatusForPole[pole,#]&,Keys[$Phase1TaskInputDependencies]]
+];
+Phase1TaskInputStatus[task_String] := phase1TaskInputStatusForPole[
+  If[TrueQ[$Phase1ExecutingPole],$Phase1CurrentPole,$Phase1SelectedPole],task];
+Phase1TaskInputStatus[pole_String,task_String] := phase1TaskInputStatusForPole[pole,task];
+
+Phase1InputRequirements[] := Module[
+  {inputs = Phase1GetSharedInputs[], sharedGroups, sharedMissing, sharedCategorized,
+   poleIDs, poleGroups, poleCategorized, unclassifiedShared, unclassifiedPole, ready},
+  sharedGroups = Association @ KeyValueMap[Function[{name, keys},
+    With[{missing = Select[keys, MissingQ[Lookup[inputs, #, Missing[]]] &]},
+      name -> <|"RequiredKeys" -> keys, "MissingValues" -> missing,
+        "MissingValueCount" -> Length[missing]|>
+    ]
+  ], $Phase1InputCategories];
+  sharedMissing = Select[Keys[inputs], MissingQ[Lookup[inputs, #, Missing[]]] &];
+  sharedCategorized = DeleteDuplicates[Flatten[Values[$Phase1InputCategories]]];
+  poleIDs = If[TrueQ[$Phase1ExecutingPole], {$Phase1CurrentPole}, $Phase1PoleIDs];
+  poleGroups = AssociationMap[Function[pole,
+    Module[{poleInputs = Phase1GetPoleInputs[pole], groups, missingKeys},
+      groups = Association @ KeyValueMap[Function[{name, keys},
+        With[{missing = Select[keys, MissingQ[Lookup[poleInputs, #, Missing[]]] &]},
+          name -> <|"RequiredKeys" -> keys, "MissingValues" -> missing,
+            "MissingValueCount" -> Length[missing]|>
+        ]
+      ], $Phase1PoleOperatingInputCategories];
+      missingKeys = Select[$Phase1PoleOperatingKeys, MissingQ[Lookup[poleInputs, #, Missing[]]] &];
+      <|"Groups" -> groups, "MissingRequiredInputKeys" -> missingKeys,
+        "MissingRequiredInputCount" -> Length[missingKeys]|>
+    ]
+  ], poleIDs];
+  poleCategorized = DeleteDuplicates[Flatten[Values[$Phase1PoleOperatingInputCategories]]];
+  unclassifiedShared = Complement[sharedMissing, sharedCategorized];
+  unclassifiedPole = AssociationMap[
+    Complement[poleGroups[#]["MissingRequiredInputKeys"], poleCategorized] &, poleIDs];
+  ready = sharedMissing === {} &&
+    And @@ (poleGroups[#]["MissingRequiredInputKeys"] === {} & /@ poleIDs) &&
+    unclassifiedShared === {} && And @@ (unclassifiedPole[#] === {} & /@ poleIDs);
+  <|"Ready" -> TrueQ[ready], "RequiredSharedInputCount" -> Length[Keys[inputs]],
+    "MissingSharedInputCount" -> Length[sharedMissing], "SharedGroups" -> sharedGroups,
+    "PoleOperatingRequirements" -> poleGroups,
+    "UnclassifiedSharedRequiredInputs" -> unclassifiedShared,
+    "UnclassifiedPoleOperatingInputs" -> unclassifiedPole,
+    "SharedDesignMaterialInputCategories" -> $Phase1InputCategories,
+    "PoleOperatingInputCategories" -> $Phase1PoleOperatingInputCategories,
+    "MissingRequiredInputKeys" -> Join[sharedMissing,
+      Flatten[Table[(pole <> "::" <> #) & /@ poleGroups[pole]["MissingRequiredInputKeys"], {pole, poleIDs}]]],
+    "MissingValueCount" -> Length[sharedMissing] + Total[poleGroups[#]["MissingRequiredInputCount"] & /@ poleIDs],
+    "Groups" -> sharedGroups,
+    "UnclassifiedRequiredInputs" -> unclassifiedShared,
+    "RequiredProjectAndNumericalInputCount" -> Total[Length /@ Values[$Phase1InputCategories]] +
+      Length[poleIDs] Total[Length /@ Values[$Phase1PoleOperatingInputCategories]],
+    "Rule" -> "Full model execution requires every registered value to be available. Values populated from the approved register are assumptions, not measured properties; unresolved ICARUS capacity remains demand-only and does not qualify hardware.",
+    "RequiredValuesMustBeExplicit" -> False,
+    "ApprovedAssumptionCount" -> Phase1ApprovedAssumptions[]["ApprovedAssumptionCount"],
+    "ApprovedAssumptions" -> Phase1ApprovedAssumptions[],
+    "UnresolvedEngineeringAndQualificationItems" -> Phase1ApprovedAssumptions[]["UnresolvedEngineeringAndQualificationItems"]|>
+];
+
+phase1ResolveDerivedInputs[in_Association] := Module[
+  {resolved=in,area,count,radius,positions,distance,referenceFluence,au},
+  (* Station coordinates are an explicit model-form assumption tied to the shared geometry,
+     not an independently keyed project dimension. They refresh when area or station count changes. *)
+  If[Lookup[resolved,"ICARUSStationPositionsLocal_m",Missing[]]===Automatic,
+    area=Lookup[resolved,"PerPoleProjectedArea_m2",Missing[]];
+    count=Lookup[resolved,"ICARUSStationCount",Missing[]];
+    If[NumericQ[area]&&area>0.&&IntegerQ[count]&&count>0,
+      radius=Sqrt[area/Pi];
+      positions=Table[{0.,radius Cos[2. Pi (j-1)/count],radius Sin[2. Pi (j-1)/count]},{j,count}];
+      resolved=Join[resolved,<|"ICARUSStationPositionsLocal_m"->positions|>]
+    ]
+  ];
+  (* SEP fluence is derived pole-locally from that pole's current distance, so optimization
+     or a distance edit cannot leave a stale 0.2 AU fluence value in either pole register. *)
+  If[Lookup[resolved,"SEPDose_protons_cm2",Missing[]]===Automatic,
+    distance=Lookup[resolved,"Distance_m",Missing[]];
+    referenceFluence=Lookup[resolved,"SEPDoseReference_protons_cm2",Missing[]];
+    au=Lookup[resolved,"AstronomicalUnit_m",Missing[]];
+    If[NumericQ[distance]&&distance>0.&&NumericQ[referenceFluence]&&referenceFluence>=0.&&NumericQ[au]&&au>0.,
+      resolved=Join[resolved,<|"SEPDose_protons_cm2"->referenceFluence (au/distance)^2|>]
+    ]
+  ];
+  resolved
+];
+
+phase1AssumptionRecord[key_String,value_] := <|
+  "Value"->value,
+  "Classification"->If[MemberQ[{"ICARUSStationPositionsLocal_m","SEPDose_protons_cm2"},key],"DerivedFromUserApprovedAssumption","UserApprovedAssumption"],
+  "Basis"->Lookup[$Phase1ApprovedAssumptionNotes,key,"User-approved screening assumption recorded in the 142-input assessment; not a measured or qualified value."]
+|>;
+
+Phase1ApprovedAssumptions[] := Module[
+  {shared=phase1ResolveDerivedInputs[Phase1GetSharedInputs[]],poleMaps,numericalKeys,sharedKeys,poleKeys,poleIDs,unresolved},
+  sharedKeys=Complement[DeleteDuplicates[Flatten[Values[KeyDrop[$Phase1ApprovedAssumptionGroups,{"PoleSpecificOperatingAssumptions","NumericalExecutionSettings"}]]]],{"ICARUSStationForceCapacity_N"}];
+  poleKeys=$Phase1ApprovedAssumptionGroups["PoleSpecificOperatingAssumptions"];
+  numericalKeys=$Phase1ApprovedAssumptionGroups["NumericalExecutionSettings"];
+  poleIDs=If[TrueQ[$Phase1ExecutingPole],{$Phase1CurrentPole},$Phase1PoleIDs];
+  poleMaps=AssociationMap[Function[pole,
+    With[{inputs=Phase1GetPoleInputs[pole]},
+      Association@Map[#->phase1AssumptionRecord[#,Lookup[inputs,#,Missing["NotAvailable"]]]&,poleKeys]
+    ]],poleIDs];
+  unresolved={
+    <|"Item"->"ICARUS mission-specific actuator redesign feasibility","Status"->If[TrueQ[shared["ICARUSRedesignFeasibilityApproved"]],"User-approved conditional design assumption","Not approved"],"Value"->Lookup[shared,"ICARUSRedesignFeasibilityApproved",Missing["NotAvailable"]],"Reason"->"The user approves the premise that modest mission-specific reengineering can provide the required capability. This is a future design premise, not evidence that the present actuators are capable."|>,
+    <|"Item"->"ICARUS current hardware ratings and complete actuator law","Status"->"Unresolved; conditional redesign force target can be calculated","Value"->Automatic,"Reason"->"Present force rating remains unknown. Local actuator torque, stroke, slew rate, bandwidth, duty cycle, power draw, thermal limits, lifetime and qualification are not specified. The 10% force reserve does not replace these checks."|>,
+    <|"Item"->"External support/tether/anchor forces","Status"->"Not modelled; no support force assumed in the free-hover calculation scope","Value"->Missing["NotModelled"],"Reason"->"Any real external support mechanism must be specified and added as its own physical force/torque contribution."|>,
+    <|"Item"->"Selected DCF/film laminate qualification","Status"->"Unqualified screening properties","Value"->Missing["QualificationEvidenceRequired"],"Reason"->"Warp/weft response, seams, creep, fatigue, coating bond, temperature dependence and space environment properties still require supplier/test data."|>,
+    <|"Item"->"Near-Sun PV/reflector durability","Status"->"Unqualified stress assumptions","Value"->Missing["QualificationEvidenceRequired"],"Reason"->"Exact-device radiation, UV, thermal-vacuum and lifetime degradation data are not established by these screening assumptions."|>
+  };
+  <|
+    "ClassificationPolicy"->"Every populated design/material/operating value originating from the input register is an assumption, not a measurement or qualification. Mathematical approximations are preferred where suitable; otherwise modest synthetic values may be selected under the user-approved project policy, clearly labelled with their basis and checked upstream/downstream. The ICARUS modest-redesign feasibility premise is explicitly user-approved; the 10% force reserve and 0.55 kg station mass are provisional numerical choices under that policy, not separately user-specified values. Present actuator ratings remain unknown.",
+    "SharedEngineeringAssumptions"->Association@Map[#->phase1AssumptionRecord[#,Lookup[shared,#,Missing["NotAvailable"]]]&,sharedKeys],
+    "PoleSpecificOperatingAssumptions"->poleMaps,
+    "NumericalExecutionSettings"->Association@Map[#-><|"Value"->Lookup[shared,#,Missing["NotAvailable"]],"Classification"->"UserApprovedNumericalSetting","Basis"->"Numerical convergence/solver setting; not a physical design or operating property."|>&,numericalKeys],
+    "AlternativeMaterialComparisonPresets"->$Phase1AlternateMaterialScenarioPresets,
+    "UnresolvedEngineeringAndQualificationItems"->unresolved,
+    "ApprovedAssumptionCount"->(Length[sharedKeys]+Length[poleKeys]*Length[poleIDs]+Length[numericalKeys])
+  |>
+];
+
+Phase1MaterialScenarioPresets[] := $Phase1AlternateMaterialScenarioPresets;
+
 Phase1GetSharedInputs[] := KeyDrop[$Phase1State["Inputs"], $Phase1PoleOperatingKeys];
-Phase1GetInputs[] := $Phase1State["Inputs"];
+Phase1GetInputs[] := phase1ResolveDerivedInputs[$Phase1State["Inputs"]];
 Phase1GetInput[name_String] := If[TrueQ[$Phase1ExecutingPole],
-  Lookup[$Phase1State["Inputs"], name, Missing["UnknownInput", name]],
+  Lookup[Phase1GetInputs[], name, Missing["UnknownInput", name]],
   If[MemberQ[$Phase1PoleOperatingKeys, name],
-    AssociationMap[Lookup[Lookup[$Phase1State["PoleOperatingInputs"], #, <||>], name, Missing["UnknownInput", name]] &, $Phase1PoleIDs],
-    Lookup[$Phase1State["Inputs"], name, Missing["UnknownInput", name]]]];
+    AssociationMap[Lookup[Phase1GetPoleInputs[#], name, Missing["UnknownInput", name]] &, $Phase1PoleIDs],
+    Lookup[Phase1GetSharedInputs[], name, Missing["UnknownInput", name]]]];
 Phase1GetPoleInputs[pole_String] := Which[
   TrueQ[$Phase1ExecutingPole] && pole =!= $Phase1CurrentPole, Failure["CrossPoleInputReadBlocked", <|"ActivePole" -> $Phase1CurrentPole, "RequestedPole" -> pole|>],
   !MemberQ[$Phase1PoleIDs, pole], Failure["UnknownPoleID", <|"Pole" -> pole, "ValidPoleIDs" -> $Phase1PoleIDs|>],
-  True, Join[KeyDrop[$Phase1State["Inputs"], $Phase1PoleOperatingKeys], Lookup[$Phase1State["PoleOperatingInputs"], pole, <||>]]];
+  True, phase1ResolveDerivedInputs[Join[KeyDrop[$Phase1State["Inputs"], $Phase1PoleOperatingKeys], Lookup[$Phase1State["PoleOperatingInputs"], pole, <||>]]]];
 
 (* Shared design/material changes invalidate both calculation caches, but do not
    modify either pole's operating inputs. PoleCount is fixed at the user-confirmed 2. *)
-Phase1SetInputs[updates_Association] := Phase1SetInputs[updates, <||>];
-Phase1SetInputs[updates_Association, sourceNotes_Association] := Module[
-  {current, unknown, oldNotes, changed, cleanNotes, staleNotes, newNotes, cacheChanged},
+Phase1SetInputs[updates_Association] := Module[
+  {current, unknown, changed, cacheChanged},
   If[TrueQ[$Phase1ExecutingPole],
     Return[Failure["SharedInputsLockedDuringPoleExecution",
       <|"Reason" -> "A pole calculation cannot mutate shared design/material inputs."|>]]
@@ -2994,30 +3923,23 @@ Phase1SetInputs[updates_Association, sourceNotes_Association] := Module[
   If[KeyExistsQ[updates, "PoleCount"] && updates["PoleCount"] =!= 2,
     Return[Failure["PoleCountIsFixedAtTwo", <|"PoleCount" -> 2|>]]
   ];
-  oldNotes = Lookup[$Phase1State, "InputNotes", <||>];
   changed = Select[Keys[updates], !SameQ[Lookup[current, #, Missing[]], updates[#]] &];
-  cleanNotes = Association @ Select[Normal @ KeyTake[sourceNotes, Keys[current]],
-    StringQ[Last[#]] && StringTrim[Last[#]] =!= "" &];
-  staleNotes = Select[changed, !KeyExistsQ[cleanNotes, #] &];
-  newNotes = Join[KeyDrop[oldNotes, staleNotes], cleanNotes];
   cacheChanged = changed =!= {};
   $Phase1State = Join[$Phase1State, <|
-    "Inputs" -> Join[current, updates], "InputNotes" -> newNotes,
+    "Inputs" -> Join[current, updates],
     "PoleStates" -> If[cacheChanged, <||>, Lookup[$Phase1State, "PoleStates", <||>]],
     "TwoPoleAggregate" -> If[cacheChanged, <||>, Lookup[$Phase1State, "TwoPoleAggregate", <||>]]
   |>];
   phase1Audit["SharedDesignMaterialInputsUpdated", <|"ChangedKeys" -> changed,
-    "OptionalSourceNotesUpdated" -> Keys[cleanNotes],
     "CalculationCachesInvalidated" -> cacheChanged,
     "BothPoleCalculationCachesInvalidated" -> cacheChanged|>];
   $Phase1State["Inputs"]
 ];
-Phase1SetInputProvenance[notes_Association] := Phase1SetInputs[<||>, notes];
 
-Phase1SetPoleOperatingInputs[pole_String, updates_Association] :=
-  Phase1SetPoleOperatingInputs[pole, updates, <||>];
-Phase1SetPoleOperatingInputs[pole_String, updates_Association, sourceNotes_Association] := Module[
-  {current, oldNotes, unknown, changed, cleanNotes, staleNotes, newNotes, poleStates, cacheChanged},
+
+
+Phase1SetPoleOperatingInputs[pole_String, updates_Association] := Module[
+  {current, unknown, changed, poleStates, cacheChanged},
   If[!MemberQ[$Phase1PoleIDs, pole],
     Return[Failure["UnknownPoleID", <|"Pole" -> pole, "ValidPoleIDs" -> $Phase1PoleIDs|>]]
   ];
@@ -3028,46 +3950,34 @@ Phase1SetPoleOperatingInputs[pole_String, updates_Association, sourceNotes_Assoc
   unknown = Complement[Keys[updates], $Phase1PoleOperatingKeys];
   If[unknown =!= {}, Return[Failure["NotPoleOperatingInputKeys", <|"Pole" -> pole, "Keys" -> unknown|>]]];
   current = Lookup[$Phase1State["PoleOperatingInputs"], pole, $Phase1PoleInputDefaults];
-  oldNotes = Lookup[Lookup[$Phase1State, "PoleOperatingNotes", <||>], pole, <||>];
   changed = Select[Keys[updates], !SameQ[Lookup[current, #, Missing[]], updates[#]] &];
-  cleanNotes = Association @ Select[Normal @ KeyTake[sourceNotes, $Phase1PoleOperatingKeys],
-    StringQ[Last[#]] && StringTrim[Last[#]] =!= "" &];
-  staleNotes = Select[changed, !KeyExistsQ[cleanNotes, #] &];
-  newNotes = Join[KeyDrop[oldNotes, staleNotes], cleanNotes];
   cacheChanged = changed =!= {};
   poleStates = Lookup[$Phase1State, "PoleStates", <||>];
   $Phase1State = Join[$Phase1State, <|
     "PoleOperatingInputs" -> Join[Lookup[$Phase1State, "PoleOperatingInputs", <||>],
       <|pole -> Join[current, updates]|>],
-    "PoleOperatingNotes" -> Join[Lookup[$Phase1State, "PoleOperatingNotes", <||>],
-      <|pole -> newNotes|>],
     "PoleStates" -> If[cacheChanged, KeyDrop[poleStates, {pole}], poleStates],
     "TwoPoleAggregate" -> If[cacheChanged, <||>, Lookup[$Phase1State, "TwoPoleAggregate", <||>]]
   |>];
   phase1Audit["PoleOperatingInputsUpdated", <|"Pole" -> pole, "ChangedKeys" -> changed,
-    "OptionalSourceNotesUpdated" -> Keys[cleanNotes],
     "CalculationCacheInvalidated" -> cacheChanged,
     "OtherPoleInputAndCacheUnchanged" -> True|>];
   Lookup[$Phase1State["PoleOperatingInputs"], pole]
 ];
-Phase1SetPoleOperatingInputProvenance[pole_String, notes_Association] :=
-  Phase1SetPoleOperatingInputs[pole, <||>, notes];
 
 
-phase1BuildPoleLocalState[pole_String] := Module[{parent = $Phase1State, prior, op, opSources, sharedSnapshotOK},
+
+
+phase1BuildPoleLocalState[pole_String] := Module[{parent = $Phase1State, prior, op, sharedSnapshotOK},
   op = Lookup[parent["PoleOperatingInputs"], pole, $Phase1PoleInputDefaults];
-  opSources = Lookup[parent["PoleOperatingNotes"], pole, <||>];
   prior = Lookup[Lookup[parent, "PoleStates", <||>], pole, <||>];
   sharedSnapshotOK = AssociationQ[prior] &&
     SameQ[Lookup[prior, "SharedInputSnapshot", Missing[]], parent["Inputs"]];
   If[!TrueQ[sharedSnapshotOK], prior = <||>];
   Join[parent, <|
-    (* The legacy single-system calculation core checks 11.9 internally; the legacy single-system calculation core still checks schema 11.9 internally. *)
     "SchemaVersion" -> "11.9",
     "Inputs" -> Join[parent["Inputs"], op],
-    "InputNotes" -> Join[Lookup[parent, "InputNotes", <||>], opSources],
     "PoleOperatingInputs" -> <|pole -> op|>,
-    "PoleOperatingNotes" -> <|pole -> opSources|>,
     "PoleStates" -> <|pole -> prior|>,
     "TwoPoleAggregate" -> <||>,
     "Derived" -> Lookup[prior, "Derived", <||>],
@@ -3080,7 +3990,7 @@ phase1BuildPoleLocalState[pole_String] := Module[{parent = $Phase1State, prior, 
 ];
 
 SetAttributes[phase1WithPole, HoldAll];
-phase1WithPole[pole_String, expr_] := Module[{local, result = $Failed, finalLocal = <||>, parent, poleRecord, op, opSources, localIsolationQ, otherStatesBefore, otherStatesAfter},
+phase1WithPole[pole_String, expr_] := Module[{local, result = $Failed, finalLocal = <||>, parent, poleRecord, op, localIsolationQ, otherStatesBefore, otherStatesAfter},
   If[!MemberQ[$Phase1PoleIDs, pole], Return[Failure["UnknownPoleID", <|"Pole" -> pole, "ValidPoleIDs" -> $Phase1PoleIDs|>]]];
   If[TrueQ[$Phase1ExecutingPole],
     If[pole === $Phase1CurrentPole, Return[expr],
@@ -3090,25 +4000,23 @@ phase1WithPole[pole_String, expr_] := Module[{local, result = $Failed, finalLoca
     result = expr; finalLocal = $Phase1State;
   ];
   op = Lookup[parent["PoleOperatingInputs"], pole, $Phase1PoleInputDefaults];
-  opSources = Lookup[parent["PoleOperatingNotes"], pole, <||>];
   localIsolationQ = TrueQ[
     Keys[Lookup[finalLocal,"PoleOperatingInputs",<||>]]==={pole} &&
-    Keys[Lookup[finalLocal,"PoleOperatingNotes",<||>]]==={pole} &&
     Keys[Lookup[finalLocal,"PoleStates",<||>]]==={pole} &&
     SameQ[KeyTake[Lookup[finalLocal,"Inputs",<||>],$Phase1PoleOperatingKeys],op]
   ];
-  If[!localIsolationQ, Return[Failure["PoleContextIsolationCheckFailed",<|"Pole"->pole,"LocalPoleInputAndStateKeys"-><|"OperatingInputs"->Keys[Lookup[finalLocal,"PoleOperatingInputs",<||>]],"OperatingProvenance"->Keys[Lookup[finalLocal,"PoleOperatingNotes",<||>]],"PoleStates"->Keys[Lookup[finalLocal,"PoleStates",<||>]]|>,"NoParentStateCommitted"->True|>]]];
+  If[!localIsolationQ, Return[Failure["PoleContextIsolationCheckFailed",<|"Pole"->pole,
+    "LocalPoleInputAndStateKeys"-><|"OperatingInputs"->Keys[Lookup[finalLocal,"PoleOperatingInputs",<||>]],
+      "PoleStates"->Keys[Lookup[finalLocal,"PoleStates",<||>]]|>,"NoParentStateCommitted"->True|>]]];
   otherStatesBefore=KeyDrop[Lookup[parent,"PoleStates",<||>],{pole}];
   poleRecord = <|
-    "Pole" -> pole, "OperatingInputs" -> op, "OperatingProvenance" -> opSources,
+    "Pole" -> pole, "OperatingInputs" -> op,
     "SharedInputSnapshot" -> parent["Inputs"],
-    "SharedProvenanceSnapshot" -> Lookup[parent, "InputNotes", <||>],
     "Derived" -> Lookup[finalLocal, "Derived", <||>],
     "Results" -> Lookup[finalLocal, "Results", <||>],
     "LastRun" -> Lookup[finalLocal, "LastRun", Missing["NotRun"]],
     "AuditLog" -> Lookup[finalLocal, "AuditLog", {}],
     "InputSnapshot" -> Lookup[finalLocal, "Inputs", <||>],
-    "OptionalSourceNotesSnapshot" -> Lookup[finalLocal, "InputNotes", <||>],
     "LocalPoleIsolationPassed" -> localIsolationQ,
     "LastExecutionResult" -> If[FailureQ[result], result, "CompletedOrReturnedValue"]
   |>;
@@ -3142,58 +4050,37 @@ Phase1ComputePole[pole_String] := phase1WithPole[pole, phase1EnsureCalculated[]]
    state, writes a sentinel to Pole1 only, and confirms Pole2 operating inputs/state are
    unchanged. It also probes public cross-pole read guards without changing live state. *)
 Phase1PoleIndependenceAudit[] := Module[
-  {stateSnapshot=$Phase1State, op1Before, op2Before, state1Before, state2Before, source1Before, source2Before, sharedBefore,
+  {stateSnapshot=$Phase1State, op1Before, op2Before, state1Before, state2Before, sharedBefore,
    sentinel1, sentinel2, setterProbe, reverseSetterProbe, pole1After, pole2After, state1After, state2After,
-   source1After, source2After, sharedAfter, crossInputProbe, crossStateProbe, reverseCrossInputProbe,
-   reverseCrossStateProbe, local1, local2, localIsolation, sharedKeys,
-   aggregateProbeState, aggregateProbe, aggregateProbeUnchanged, checks},
+   sharedAfter, crossInputProbe, crossStateProbe, reverseCrossInputProbe, reverseCrossStateProbe,
+   local1, local2, localIsolation, sharedKeys, aggregateProbeState, aggregateProbe, aggregateProbeUnchanged, checks},
   op1Before=Lookup[stateSnapshot["PoleOperatingInputs"],"Pole1",<||>];
   op2Before=Lookup[stateSnapshot["PoleOperatingInputs"],"Pole2",<||>];
   state1Before=Lookup[stateSnapshot["PoleStates"],"Pole1",Missing["NoPole1State"]];
   state2Before=Lookup[stateSnapshot["PoleStates"],"Pole2",Missing["NoPole2State"]];
-  source1Before=Lookup[stateSnapshot["PoleOperatingNotes"],"Pole1",<||>];
-  source2Before=Lookup[stateSnapshot["PoleOperatingNotes"],"Pole2",<||>];
   sharedBefore=Lookup[stateSnapshot,"Inputs",<||>];
-  sentinel1=Unique["Pole1IsolationSentinel$"];
-  sentinel2=Unique["Pole2IsolationSentinel$"];
+  sentinel1=Unique["Pole1IsolationSentinel$"];sentinel2=Unique["Pole2IsolationSentinel$"];
   setterProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    Phase1SetPoleOperatingInputs["Pole1",<|"Distance_m"->sentinel1|>,<|"Distance_m"->"Temporary internal isolation self-test sentinel; not a project value"|>];
-    $Phase1State
-  ];
+    Phase1SetPoleOperatingInputs["Pole1",<|"Distance_m"->sentinel1|>];$Phase1State];
   pole1After=Lookup[Lookup[setterProbe,"PoleOperatingInputs",<||>],"Pole1",<||>];
   pole2After=Lookup[Lookup[setterProbe,"PoleOperatingInputs",<||>],"Pole2",<||>];
   state1After=Lookup[Lookup[setterProbe,"PoleStates",<||>],"Pole1",Missing["NoPole1State"]];
   state2After=Lookup[Lookup[setterProbe,"PoleStates",<||>],"Pole2",Missing["NoPole2State"]];
-  source1After=Lookup[Lookup[setterProbe,"PoleOperatingNotes",<||>],"Pole1",<||>];
-  source2After=Lookup[Lookup[setterProbe,"PoleOperatingNotes",<||>],"Pole2",<||>];
   sharedAfter=Lookup[setterProbe,"Inputs",<||>];
   reverseSetterProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    Phase1SetPoleOperatingInputs["Pole2",<|"Distance_m"->sentinel2|>,<|"Distance_m"->"Temporary internal reverse-direction isolation self-test sentinel; not a project value"|>];
-    $Phase1State
-  ];
-  crossInputProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    phase1WithPole["Pole1",Phase1GetPoleInputs["Pole2"]]
-  ];
-  crossStateProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    phase1WithPole["Pole1",Phase1GetPoleState["Pole2"]]
-  ];
-  reverseCrossInputProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    phase1WithPole["Pole2",Phase1GetPoleInputs["Pole1"]]
-  ];
-  reverseCrossStateProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},
-    phase1WithPole["Pole2",Phase1GetPoleState["Pole1"]]
-  ];
-  local1=phase1BuildPoleLocalState["Pole1"];
-  local2=phase1BuildPoleLocalState["Pole2"];
+    Phase1SetPoleOperatingInputs["Pole2",<|"Distance_m"->sentinel2|>];$Phase1State];
+  crossInputProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},phase1WithPole["Pole1",Phase1GetPoleInputs["Pole2"]]];
+  crossStateProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},phase1WithPole["Pole1",Phase1GetPoleState["Pole2"]]];
+  reverseCrossInputProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},phase1WithPole["Pole2",Phase1GetPoleInputs["Pole1"]]];
+  reverseCrossStateProbe=Block[{$Phase1State=stateSnapshot,$Phase1ExecutingPole=False,$Phase1CurrentPole=None},phase1WithPole["Pole2",Phase1GetPoleState["Pole1"]]];
+  local1=phase1BuildPoleLocalState["Pole1"];local2=phase1BuildPoleLocalState["Pole2"];
   sharedKeys=Keys[KeyDrop[stateSnapshot["Inputs"],$Phase1PoleOperatingKeys]];
   {aggregateProbe,aggregateProbeUnchanged}=Block[{$Phase1State=stateSnapshot},
     aggregateProbeState=$Phase1State;
     aggregateProbe=phase1PoleAggregate[<|
       "Pole1"-><|"MassBalance"-><|"TotalMass_kg"->1.|>,"PowerLedger"-><|"ConditionedDeliveredPower_W_PerPole"->2.|>|>,
-      "Pole2"-><|"MassBalance"-><|"TotalMass_kg"->3.|>,"PowerLedger"-><|"ConditionedDeliveredPower_W_PerPole"->4.|>|>
-    |>];
-    {aggregateProbe,SameQ[$Phase1State,aggregateProbeState]}
-  ];
+      "Pole2"-><|"MassBalance"-><|"TotalMass_kg"->3.|>,"PowerLedger"-><|"ConditionedDeliveredPower_W_PerPole"->4.|>|>|>];
+    {aggregateProbe,SameQ[$Phase1State,aggregateProbeState]}];
   localIsolation=TrueQ[
     Keys[Lookup[local1,"PoleOperatingInputs",<||>]]==={"Pole1"} &&
     Keys[Lookup[local2,"PoleOperatingInputs",<||>]]==={"Pole2"} &&
@@ -3201,8 +4088,7 @@ Phase1PoleIndependenceAudit[] := Module[
     Keys[Lookup[local2,"PoleStates",<||>]]==={"Pole2"} &&
     SameQ[KeyTake[local1["Inputs"],$Phase1PoleOperatingKeys],op1Before] &&
     SameQ[KeyTake[local2["Inputs"],$Phase1PoleOperatingKeys],op2Before] &&
-    SameQ[KeyDrop[local1["Inputs"],$Phase1PoleOperatingKeys],KeyDrop[local2["Inputs"],$Phase1PoleOperatingKeys]]
-  ];
+    SameQ[KeyDrop[local1["Inputs"],$Phase1PoleOperatingKeys],KeyDrop[local2["Inputs"],$Phase1PoleOperatingKeys]]];
   checks=<|
     "ExactlyTwoPoleSystems"->TrueQ[$Phase1PoleIDs==={"Pole1","Pole2"} && Lookup[stateSnapshot["Inputs"],"PoleCount",Missing[]]===2],
     "SharedRegisterContainsNoPoleOperatingKeys"->TrueQ[Intersection[Keys[stateSnapshot["Inputs"]],$Phase1PoleOperatingKeys]==={}],
@@ -3213,12 +4099,12 @@ Phase1PoleIndependenceAudit[] := Module[
     "PoleOperatingInputMapsSeparate"->TrueQ[AssociationQ[op1Before]&&AssociationQ[op2Before]],
     "UpdatingPole1ChangesOnlyRequestedPole1Field"->SameQ[pole1After,Join[op1Before,<|"Distance_m"->sentinel1|>]],
     "UpdatingPole1DoesNotChangePole2OperatingInputs"->SameQ[op2Before,pole2After],
-    "UpdatingPole1DoesNotChangePole2OperatingProvenance"->SameQ[source2Before,source2After],
     "UpdatingPole1DoesNotChangePole2CachedState"->SameQ[state2Before,state2After],
+    "UpdatingPole1InvalidatesOnlyPole1Cache"->!KeyExistsQ[Lookup[setterProbe,"PoleStates",<||>],"Pole1"],
     "UpdatingPole2ChangesOnlyRequestedPole2Field"->SameQ[Lookup[Lookup[reverseSetterProbe,"PoleOperatingInputs",<||>],"Pole2",<||>],Join[op2Before,<|"Distance_m"->sentinel2|>]],
     "UpdatingPole2DoesNotChangePole1OperatingInputs"->SameQ[op1Before,Lookup[Lookup[reverseSetterProbe,"PoleOperatingInputs",<||>],"Pole1",<||>]],
-    "UpdatingPole2DoesNotChangePole1OperatingProvenance"->SameQ[source1Before,Lookup[Lookup[reverseSetterProbe,"PoleOperatingNotes",<||>],"Pole1",<||>]],
     "UpdatingPole2DoesNotChangePole1CachedState"->SameQ[state1Before,Lookup[Lookup[reverseSetterProbe,"PoleStates",<||>],"Pole1",Missing["NoPole1State"]]],
+    "UpdatingPole2InvalidatesOnlyPole2Cache"->!KeyExistsQ[Lookup[reverseSetterProbe,"PoleStates",<||>],"Pole2"],
     "UpdatingPole1DoesNotChangeSharedDesignMaterialInputs"->SameQ[sharedBefore,sharedAfter],
     "PoleContextsContainOnlyTheirOwnOperatingInputsAndState"->localIsolation,
     "Pole1ToPole2InputReadBlocked"->MatchQ[crossInputProbe,Failure["CrossPoleInputReadBlocked",_Association]],
@@ -3230,14 +4116,7 @@ Phase1PoleIndependenceAudit[] := Module[
     "AggregateMassAndPowerAreArithmeticSums"->TrueQ[SameQ[Lookup[aggregateProbe,"TotalMass_kg",Missing[]],4.] && SameQ[Lookup[aggregateProbe,"TotalDeliveredPower_W",Missing[]],6.]],
     "AggregateDoesNotMultiplyByPoleCount"->TrueQ[SameQ[Lookup[aggregateProbe,"TotalMass_kg",Missing[]],Total[{1.,3.}]] && SameQ[Lookup[aggregateProbe,"TotalDeliveredPower_W",Missing[]],Total[{2.,4.}]]],
     "PerPoleContextsDoNotReceiveAggregateState"->TrueQ[Lookup[local1,"TwoPoleAggregate",Missing[]]===<||> && Lookup[local2,"TwoPoleAggregate",Missing[]]===<||>],
-    "NoSharedOperationalStateOrCrossPoleFeedback"->TrueQ[localIsolation && SameQ[op2Before,pole2After] && SameQ[source2Before,source2After] && SameQ[state2Before,state2After] &&
-      SameQ[op1Before,Lookup[Lookup[reverseSetterProbe,"PoleOperatingInputs",<||>],"Pole1",<||>]] &&
-      SameQ[source1Before,Lookup[Lookup[reverseSetterProbe,"PoleOperatingNotes",<||>],"Pole1",<||>]] &&
-      SameQ[state1Before,Lookup[Lookup[reverseSetterProbe,"PoleStates",<||>],"Pole1",Missing["NoPole1State"]]] &&
-      SameQ[sharedBefore,sharedAfter] && MatchQ[crossInputProbe,Failure["CrossPoleInputReadBlocked",_Association]] &&
-      MatchQ[crossStateProbe,Failure["CrossPoleStateReadBlocked",_Association]] &&
-      MatchQ[reverseCrossInputProbe,Failure["CrossPoleInputReadBlocked",_Association]] &&
-      MatchQ[reverseCrossStateProbe,Failure["CrossPoleStateReadBlocked",_Association]] && aggregateProbeUnchanged]
+    "NoSharedOperationalStateOrCrossPoleFeedback"->TrueQ[localIsolation && SameQ[op2Before,pole2After] && SameQ[state2Before,state2After] && SameQ[op1Before,Lookup[Lookup[reverseSetterProbe,"PoleOperatingInputs",<||>],"Pole1",<||>]] && SameQ[state1Before,Lookup[Lookup[reverseSetterProbe,"PoleStates",<||>],"Pole1",Missing["NoPole1State"]]] && SameQ[sharedBefore,sharedAfter] && MatchQ[crossInputProbe,Failure["CrossPoleInputReadBlocked",_Association]] && MatchQ[crossStateProbe,Failure["CrossPoleStateReadBlocked",_Association]] && MatchQ[reverseCrossInputProbe,Failure["CrossPoleInputReadBlocked",_Association]] && MatchQ[reverseCrossStateProbe,Failure["CrossPoleStateReadBlocked",_Association]] && aggregateProbeUnchanged]
   |>;
   <|"Rule"->"Two physically distinct systems, one at each pole; design/material definitions shared, all operation independent.",
     "Checks"->checks,"Passed"->(And@@(TrueQ/@Values[checks])),
@@ -3412,19 +4291,309 @@ Phase1RunBothPoleAssessments[] := If[TrueQ[$Phase1ExecutingPole],
 Phase1RunFullAssessment[] := If[TrueQ[$Phase1ExecutingPole], phase1RunFullAssessmentCurrent[], Phase1RunBothPoleAssessments[]];
 Phase1RunFullAssessment[pole_String] := Phase1RunPoleAssessment[pole];
 
+phase1RunIndependentPoleTaskCurrent[task_String] := Module[
+  {in=Phase1GetInputs[],status,missing,geo,mesh,result,derived,manifest,outputs,inputHash,closure,
+   optics,sun,illum,rad,force,moment,energyScale,rad0,mass0,dyn0,attitudeMesh,mass,dyn,natural,massFinal,stationPositions},
+  If[!TrueQ[$Phase1ExecutingPole]||!MemberQ[$Phase1PoleIDs,$Phase1CurrentPole],
+    Return[Failure["IndependentTaskRequiresPoleContext",<|"Task"->task|>]]
+  ];
+  If[!MemberQ[$Phase1IndependentlyExecutableTasks,task],
+    Return[Failure["IndependentTaskNotSupported",<|"Task"->task,
+      "SupportedTasks"->$Phase1IndependentlyExecutableTasks|>]]
+  ];
+  status=phase1TaskInputStatusFromInputs[in,task];
+  If[FailureQ[status],Return[status]];
+  missing=status["MissingInputKeys"];
+  If[missing=!={},
+    Return[Failure["TaskInputsMissing",<|"Task"->task,"Pole"->$Phase1CurrentPole,
+      "MissingInputKeys"->missing,"RequiredInputKeys"->status["RequiredInputKeys"]|>]]
+  ];
+  derived=Lookup[$Phase1State,"Derived",<||>];
+  Switch[task,
+    "Geometry",
+      If[!TrueQ[in["GeometryProfileModel"]==="SphericalCapSurrogate"&&
+          NumericQ[in["PerPoleProjectedArea_m2"]]&&in["PerPoleProjectedArea_m2"]>0.&&
+          NumericQ[in["CapDepthToPlanformRadius"]]&&0.<in["CapDepthToPlanformRadius"]<1.],
+        Return[Failure["InvalidTaskInputs",<|"Task"->task,
+          "Reason"->"The selected geometry model, projected area and cap-depth ratio must be valid."|>]]
+      ];
+      result=phase1Geometry[in];
+      If[FailureQ[result],Return[result]];
+      outputs={"Geometry"};
+      derived=Join[derived,<|"Geometry"->result|>],
+    "SurfaceMesh",
+      If[!TrueQ[in["GeometryProfileModel"]==="SphericalCapSurrogate"&&
+          NumericQ[in["PerPoleProjectedArea_m2"]]&&in["PerPoleProjectedArea_m2"]>0.&&
+          NumericQ[in["CapDepthToPlanformRadius"]]&&0.<in["CapDepthToPlanformRadius"]<1.&&
+          IntegerQ[in["MeshRadialCount"]]&&in["MeshRadialCount"]>0&&
+          IntegerQ[in["MeshAzimuthCount"]]&&in["MeshAzimuthCount"]>0&&
+          NumericQ[in["MeshAreaRelativeTolerance"]]&&in["MeshAreaRelativeTolerance"]>0.],
+        Return[Failure["InvalidTaskInputs",<|"Task"->task,
+          "Reason"->"Geometry and mesh resolution inputs must be valid positive values."|>]]
+      ];
+      geo=phase1Geometry[in];
+      If[FailureQ[geo],Return[geo]];
+      mesh=phase1Mesh[in,geo];
+      If[!AssociationQ[mesh]||!IntegerQ[Lookup[mesh,"PatchCount",Missing[]]]||mesh["PatchCount"]<=0,
+        Return[Failure["IndependentTaskCalculationFailed",<|"Task"->task,"Result"->mesh|>]]
+      ];
+      If[!NumericQ[mesh["QuadratureAreaRelativeError"]],
+        Return[Failure["IndependentTaskCalculationFailed",<|"Task"->task,"Reason"->"Mesh area check was not numeric."|>]]
+      ];
+      If[!TrueQ[Abs[mesh["QuadratureAreaRelativeError"]]<=in["MeshAreaRelativeTolerance"]],
+        Return[Failure["MeshAreaToleranceNotMet",<|"Task"->task,
+          "RelativeAreaError"->mesh["QuadratureAreaRelativeError"],
+          "AllowedRelativeError"->in["MeshAreaRelativeTolerance"]|>]]
+      ];
+      outputs={"Geometry","SurfaceMesh"};
+      result=mesh;
+      derived=Join[derived,<|"Geometry"->geo,"SurfaceMesh"->mesh|>],
+    "OpticalRegister",
+      If[!TrueQ[in["ReflectionModel"]==="Specular"&&
+          And@@((NumericQ[#]&&0.<=#<=1.)&/@{
+            in["ReflectorSolarReflectivity"],in["ReflectorSolarTransmissivity"],
+            in["PVSolarReflectivity"],in["PVSolarTransmissivity"]})&&
+          in["ReflectorSolarReflectivity"]+in["ReflectorSolarTransmissivity"]<=1.&&
+          in["PVSolarReflectivity"]+in["PVSolarTransmissivity"]<=1.&&
+          NumericQ[in["OpticalClosureTolerance"]]&&in["OpticalClosureTolerance"]>=0.],
+        Return[Failure["InvalidTaskInputs",<|"Task"->task,
+          "Reason"->"Reflection model, optical energy fractions and closure tolerance must be valid."|>]]
+      ];
+      result=phase1Optics[in];
+      If[FailureQ[result],Return[result]];
+      closure=Lookup[result,"EnergyClosure",<||>];
+      If[!And@@((NumericQ[Lookup[closure,#,Missing[]]]&&
+          Abs[Lookup[closure,#,Infinity]-1.]<=in["OpticalClosureTolerance"])&/@{"Reflector","PV"}),
+        Return[Failure["OpticalEnergyClosureFailed",<|"Task"->task,"EnergyClosure"->closure,
+          "Tolerance"->in["OpticalClosureTolerance"]|>]]
+      ];
+      outputs={"OpticalRegister"};
+      derived=Join[derived,<|"OpticalRegister"->result|>],
+    "InitialRadiationLoads",
+      If[!TrueQ[
+          NumericQ[in["PVFraction"]]&&0.<=in["PVFraction"]<=1.&&
+          NumericQ[in["Distance_m"]]&&in["Distance_m"]>0.&&
+          NumericQ[in["IncidenceAngle_deg"]]&&
+          NumericQ[in["SolarLuminosity_W"]]&&in["SolarLuminosity_W"]>0.&&
+          NumericQ[in["SpeedOfLight_m_s"]]&&in["SpeedOfLight_m_s"]>0.&&
+          NumericQ[in["PowerLedgerRelativeTolerance"]]&&in["PowerLedgerRelativeTolerance"]>0.],
+        Return[Failure["InvalidTaskInputs",<|"Task"->task,
+          "Reason"->"PV fraction, pole distance, incidence, solar luminosity, light speed and energy-ledger tolerance must be valid."|>]]
+      ];
+      geo=phase1Geometry[in];
+      If[FailureQ[geo],Return[geo]];
+      mesh=phase1Mesh[in,geo];
+      If[!AssociationQ[mesh]||!IntegerQ[Lookup[mesh,"PatchCount",Missing[]]]||
+          mesh["PatchCount"]<=0||!NumericQ[mesh["QuadratureAreaRelativeError"]],
+        Return[Failure["IndependentTaskCalculationFailed",<|"Task"->task,"Result"->mesh|>]]
+      ];
+      If[!TrueQ[Abs[mesh["QuadratureAreaRelativeError"]]<=in["MeshAreaRelativeTolerance"]],
+        Return[Failure["MeshAreaToleranceNotMet",<|"Task"->task,
+          "RelativeAreaError"->mesh["QuadratureAreaRelativeError"],
+          "AllowedRelativeError"->in["MeshAreaRelativeTolerance"]|>]]
+      ];
+      optics=phase1Optics[in];
+      If[!AssociationQ[optics]||
+          !And@@((NumericQ[Lookup[Lookup[optics,"EnergyClosure",<||>],#,Missing[]]]&&
+            Abs[Lookup[Lookup[optics,"EnergyClosure",<||>],#,-Infinity]-1.]<=in["OpticalClosureTolerance"])&/@{"Reflector","PV"}),
+        Return[Failure["OpticalEnergyClosureFailed",<|"Task"->task,"EnergyClosure"->Lookup[optics,"EnergyClosure",<||>]|>]]
+      ];
+      sun=phase1SunVector[in["IncidenceAngle_deg"]];
+      illum=phase1Illumination[mesh,sun];
+      rad=phase1Radiation[in,geo,mesh,optics,in["PVFraction"],in["Distance_m"],in["IncidenceAngle_deg"],sun];
+      If[FailureQ[rad],Return[rad]];
+      force=Lookup[rad,"NetRadiationForceVector_N",Missing[]];
+      moment=Lookup[rad,"NetRadiationMoment_Nm",Missing[]];
+      If[!VectorQ[force,NumericQ]||Length[force]=!=3||
+          !VectorQ[moment,NumericQ]||Length[moment]=!=3,
+        Return[Failure["IndependentRadiationResultInvalid",<|"Task"->task,
+          "ForceVector"->force,"MomentVector"->moment|>]]
+      ];
+      energyScale=Max[Abs[Lookup[rad,"TotalIncidentOpticalPower_W",0.]],$MinMachineNumber];
+      If[!TrueQ[Abs[Lookup[rad,"OpticalEnergyClosureResidual_W",Infinity]]<=
+          in["PowerLedgerRelativeTolerance"] energyScale],
+        Return[Failure["RadiationOpticalEnergyLedgerFailed",<|"Task"->task,
+          "Residual_W"->Lookup[rad,"OpticalEnergyClosureResidual_W",Missing[]],
+          "IncidentPower_W"->energyScale,
+          "RelativeTolerance"->in["PowerLedgerRelativeTolerance"]|>]]
+      ];
+      result=Join[rad,<|
+        "CalculationScope"->"Independent initial-reference-frame radiation-load estimate",
+        "ForceTorqueReferenceFrame"->"Pole-local geometry origin before centre-of-mass and initial-attitude correction",
+        "FinalCOMAndInitialAttitudeCorrectionApplied"->False,
+        "FullCoreCalculationExecuted"->False,
+        "GeometryModelQualification"->geo["GeometryModelQualification"],
+        "MeshAreaRelativeError"->mesh["QuadratureAreaRelativeError"],
+        "MeshAreaRelativeTolerance"->in["MeshAreaRelativeTolerance"],
+        "OpticalEnergyLedgerRelativeResidual"->If[energyScale>0.,Abs[rad["OpticalEnergyClosureResidual_W"]]/energyScale,0.],
+        "InitialReferenceFrameIllumination"->illum,
+        "Pole"->$Phase1CurrentPole
+      |>];
+      outputs={"Geometry","SurfaceMesh","OpticalRegister","InitialReferenceFrameIllumination","InitialRadiationLoads"};
+      derived=Join[derived,<|"Geometry"->geo,"SurfaceMesh"->mesh,
+        "OpticalRegister"->optics,"InitialReferenceFrameIllumination"->illum,
+        "InitialRadiationLoads"->result|>],
+    "NaturalEquilibrium",
+      stationPositions=in["ICARUSStationPositionsLocal_m"];
+      If[!TrueQ[
+          in["GeometryProfileModel"]==="SphericalCapSurrogate"&&
+          in["MassDistributionModel"]==="UniformSheetMassWithPerimeterLineMassAndStationPointMasses"&&
+          NumericQ[in["PVFraction"]]&&0.<=in["PVFraction"]<=1.&&
+          NumericQ[in["Distance_m"]]&&in["Distance_m"]>0.&&
+          NumericQ[in["IncidenceAngle_deg"]]&&
+          NumericQ[in["ExactEquilibriumRelativeTolerance"]]&&in["ExactEquilibriumRelativeTolerance"]>0.&&
+          NumericQ[in["PowerLedgerRelativeTolerance"]]&&in["PowerLedgerRelativeTolerance"]>0.&&
+          NumericQ[in["SolarWindProtonDensity_1AU_cm3"]]&&in["SolarWindProtonDensity_1AU_cm3"]>=0.&&
+          NumericQ[in["SolarWindSpeed_1AU_m_s"]]&&in["SolarWindSpeed_1AU_m_s"]>=0.&&
+          NumericQ[in["AstronomicalUnit_m"]]&&in["AstronomicalUnit_m"]>0.&&
+          VectorQ[in["InitialAttitudeSmallAngles_rad"],NumericQ]&&Length[in["InitialAttitudeSmallAngles_rad"]]===3&&
+          VectorQ[in["InitialAngularVelocity_rad_s"],NumericQ]&&Length[in["InitialAngularVelocity_rad_s"]]===3&&
+          VectorQ[in["InitialPositionLocal_m"],NumericQ]&&Length[in["InitialPositionLocal_m"]]===3&&
+          VectorQ[in["InitialVelocityLocal_m_s"],NumericQ]&&Length[in["InitialVelocityLocal_m_s"]]===3&&
+          VectorQ[in["InitialVelocityHeliocentric_m_s"],NumericQ]&&Length[in["InitialVelocityHeliocentric_m_s"]]===3&&
+          in["HeliocentricReferenceMotionMode"]==="StaticHover"&&Norm[in["InitialVelocityHeliocentric_m_s"]]===0.&&
+          StringQ[in["MembraneSubstrateMaterialName"]]&&StringTrim[in["MembraneSubstrateMaterialName"]]=!=""&&
+          ListQ[stationPositions]&&Length[stationPositions]===in["ICARUSStationCount"]&&
+          And@@(VectorQ[#,NumericQ]&&Length[#]===3&/@stationPositions)],
+        Return[Failure["InvalidTaskInputs",<|"Task"->task,
+          "Reason"->"Natural-equilibrium inputs must include the selected geometry and mass models, all pole-specific initial conditions and solar-wind inputs, and valid shared station geometry."|>]]
+      ];
+      geo=phase1Geometry[in];
+      If[FailureQ[geo],Return[geo]];
+      mesh=phase1Mesh[in,geo];
+      If[!AssociationQ[mesh]||!IntegerQ[Lookup[mesh,"PatchCount",Missing[]]]||
+          mesh["PatchCount"]<=0||!NumericQ[Lookup[mesh,"QuadratureAreaRelativeError",Missing[]]],
+        Return[Failure["InitialMeshFailed",<|"Task"->task,"Result"->mesh|>]]
+      ];
+      If[!TrueQ[Abs[mesh["QuadratureAreaRelativeError"]]<=in["MeshAreaRelativeTolerance"]],
+        Return[Failure["MeshAreaToleranceNotMet",<|"Task"->task,
+          "RelativeAreaError"->mesh["QuadratureAreaRelativeError"],
+          "AllowedRelativeError"->in["MeshAreaRelativeTolerance"]|>]]
+      ];
+      optics=phase1Optics[in];
+      If[!AssociationQ[optics],Return[Failure["OpticalRegisterFailed",<|"Task"->task|>]]];
+      closure=Lookup[optics,"EnergyClosure",<||>];
+      If[!And@@((NumericQ[Lookup[closure,#,Missing[]]]&&
+          Abs[Lookup[closure,#,Infinity]-1.]<=in["OpticalClosureTolerance"])&/@{"Reflector","PV"}),
+        Return[Failure["OpticalEnergyClosureFailed",<|"Task"->task,"EnergyClosure"->closure,
+          "Tolerance"->in["OpticalClosureTolerance"]|>]]
+      ];
+      sun=phase1SunVector[in["IncidenceAngle_deg"]];
+      illum=phase1Illumination[mesh,sun];
+      rad0=phase1Radiation[in,geo,mesh,optics,in["PVFraction"],in["Distance_m"],in["IncidenceAngle_deg"],sun];
+      If[FailureQ[rad0],Return[rad0]];
+      mass0=phase1Mass[in,geo,rad0,in["PVFraction"],in["Distance_m"]];
+      If[FailureQ[mass0]||!AssociationQ[mass0],Return[Failure["InitialMassCalculationFailed",<|"Task"->task,"Result"->mass0|>]]];
+      If[!TrueQ[Lookup[mass0,"MassLedgerCloses",False]]||
+          !TrueQ[Lookup[mass0,"StationMassCountedOnce",False]],
+        Return[Failure["InitialMassLedgerFailed",<|"Task"->task,
+          "MassLedgerCloses"->Lookup[mass0,"MassLedgerCloses",False],
+          "StationMassCountedOnce"->Lookup[mass0,"StationMassCountedOnce",False]|>]]
+      ];
+      dyn0=phase1DynamicsInitial[in,geo,mass0,mesh];
+      If[FailureQ[dyn0]||!AssociationQ[dyn0],Return[Failure["InitialDynamicsFailed",<|"Task"->task,"Result"->dyn0|>]]];
+      If[!NumericQ[Lookup[dyn0,"MassConservationResidual_kg",Missing[]]]||
+          Abs[dyn0["MassConservationResidual_kg"]]>
+            in["PowerLedgerRelativeTolerance"] Max[Abs[mass0["TotalMass_kg"]],$MinMachineNumber],
+        Return[Failure["InitialMassConservationFailed",<|"Task"->task,
+          "Residual_kg"->Lookup[dyn0,"MassConservationResidual_kg",Missing[]],
+          "TotalMass_kg"->mass0["TotalMass_kg"]|>]]
+      ];
+      attitudeMesh=phase1RotateMeshToCOM[mesh,dyn0["CenterOfMassLocal_m"],dyn0["InitialQuaternion"]];
+      If[!AssociationQ[attitudeMesh],Return[Failure["COMAttitudeMeshConstructionFailed",<|"Task"->task|>]]];
+      rad=phase1Radiation[in,geo,attitudeMesh,optics,in["PVFraction"],in["Distance_m"],in["IncidenceAngle_deg"],sun];
+      If[FailureQ[rad],Return[rad]];
+      force=Lookup[rad,"NetRadiationForceVector_N",Missing[]];
+      moment=Lookup[rad,"NetRadiationMoment_Nm",Missing[]];
+      If[!VectorQ[force,NumericQ]||Length[force]=!=3||
+          !VectorQ[moment,NumericQ]||Length[moment]=!=3,
+        Return[Failure["COMCorrectedRadiationResultInvalid",<|"Task"->task,
+          "Force"->force,"Moment"->moment|>]]
+      ];
+      energyScale=Max[Abs[Lookup[rad,"TotalIncidentOpticalPower_W",0.]],$MinMachineNumber];
+      If[!TrueQ[Abs[Lookup[rad,"OpticalEnergyClosureResidual_W",Infinity]]<=
+          in["PowerLedgerRelativeTolerance"] energyScale],
+        Return[Failure["CorrectedRadiationEnergyLedgerFailed",<|"Task"->task,
+          "Residual_W"->Lookup[rad,"OpticalEnergyClosureResidual_W",Missing[]],
+          "IncidentPower_W"->energyScale|>]]
+      ];
+      mass=phase1Mass[in,geo,rad,in["PVFraction"],in["Distance_m"]];
+      If[FailureQ[mass]||!AssociationQ[mass],Return[Failure["CorrectedMassCalculationFailed",<|"Task"->task,"Result"->mass|>]]];
+      dyn=phase1DynamicsInitial[in,geo,mass,mesh];
+      If[FailureQ[dyn]||!AssociationQ[dyn],Return[Failure["CorrectedDynamicsFailed",<|"Task"->task,"Result"->dyn|>]]];
+      natural=phase1NaturalEquilibrium[in,rad,mass,dyn];
+      If[FailureQ[natural]||!AssociationQ[natural],Return[Failure["NaturalEquilibriumFailed",<|"Task"->task,"Result"->natural|>]]];
+      massFinal=phase1MergeNaturalEquilibrium[mass,natural];
+      If[!TrueQ[Lookup[massFinal,"MassLedgerCloses",False]]||
+          !VectorQ[Lookup[natural,"NetNaturalForceVector_N",{}],NumericQ]||
+          Length[natural["NetNaturalForceVector_N"]]=!=3||
+          !VectorQ[Lookup[natural,"NetNaturalTorqueAboutCOM_Nm",{}],NumericQ]||
+          Length[natural["NetNaturalTorqueAboutCOM_Nm"]]=!=3||
+          !MemberQ[{True,False},Lookup[natural,"ExactNaturalEquilibrium",Missing[]]],
+        Return[Failure["PerPoleNaturalEquilibriumResultInvalid",<|"Task"->task,"Mass"->massFinal,"Natural"->natural|>]]
+      ];
+      result=<|
+        "Pole"->$Phase1CurrentPole,
+        "MassBalance"->massFinal,
+        "InitialMassBalance"->mass0,
+        "Dynamics"->dyn,
+        "InitialDynamics"->dyn0,
+        "InitialReferenceFrameRadiationLoads"->rad0,
+        "COMCorrectedRadiationLoads"->rad,
+        "COMCorrectedSurfaceMesh"->attitudeMesh,
+        "NaturalEquilibrium"->natural,
+        "NaturalEquilibriumPass"->TrueQ[natural["ExactNaturalEquilibrium"]],
+        "NaturalForceResidualMagnitude_m_s2"->natural["NaturalForceResidualMagnitude_m_s2"],
+        "NaturalTorqueResidualMagnitude_Nm"->natural["NaturalTorqueResidualMagnitude_Nm"],
+        "ForceAndTorqueEquilibriumPassIndependentlyPerPole"->TrueQ[natural["ExactNaturalEquilibrium"]],
+        "RadiationCOMAndInitialAttitudeCorrectionApplied"->True,
+        "FullCoreCalculationExecuted"->False,
+        "EngineeringAcceptance"->"NotDeterminedByThisTask",
+        "TaskScope"->"Independent single-pole natural equilibrium calculation only; it does not execute thermal, power, structural, disturbance/recovery, actuator qualification, optimization or whole-project acceptance."
+      |>;
+      outputs={"Geometry","SurfaceMesh","OpticalRegister","InitialReferenceFrameIllumination",
+        "InitialRadiationLoads","InitialMassBalance","InitialDynamics","COMCorrectedSurfaceMesh",
+        "COMCorrectedRadiationLoads","MassBalance","Dynamics","NaturalEquilibrium"};
+      derived=Join[derived,<|"Geometry"->geo,"SurfaceMesh"->mesh,"OpticalRegister"->optics,
+        "InitialReferenceFrameIllumination"->illum,"InitialRadiationLoads"->rad0,
+        "InitialMassBalance"->mass0,"InitialDynamics"->dyn0,"COMCorrectedSurfaceMesh"->attitudeMesh,
+        "COMCorrectedRadiationLoads"->rad,"MassBalance"->massFinal,"Dynamics"->dyn,
+        "NaturalEquilibrium"->natural|>]
+  ];
+  inputHash=Hash[KeyTake[in,status["RequiredInputKeys"]],"SHA256"];
+  manifest=Lookup[derived,"IndependentTaskManifest",<||>];
+  manifest=Join[manifest,<|task-><|"InputSnapshotHash"->inputHash,
+    "RequiredInputKeys"->status["RequiredInputKeys"],"OutputKeys"->outputs,
+    "ExecutionMode"->"IndependentPartialTask","FullCoreCalculationExecuted"->False|>|>];
+  derived=Join[derived,<|"IndependentTaskManifest"->manifest|>];
+  $Phase1State=Join[$Phase1State,<|"Derived"->derived|>];
+  phase1Audit["IndependentTaskExecuted",<|"Pole"->$Phase1CurrentPole,"Task"->task,
+    "OutputKeys"->outputs,"FullCoreCalculationExecuted"->False|>];
+  <|"Pole"->$Phase1CurrentPole,"Task"->task,"Executed"->True,
+    "ExecutionMode"->"IndependentPartialTask","OutputKeys"->outputs,
+    "Result"->result,"FullCoreCalculationExecuted"->False,
+    "FullCalculationStatus"->"NotRunByIndependentTask"|>
+];
+
 Phase1RunPoleTask[pole_String, task_String] := phase1WithPole[pole, Switch[task,
+  "Geometry"|"SurfaceMesh"|"OpticalRegister"|"InitialRadiationLoads"|"NaturalEquilibrium", phase1RunIndependentPoleTaskCurrent[task],
   "ComputeAll", phase1EnsureCalculated[],
   "FullAssessment", phase1RunFullAssessmentCurrent[],
   "JointOptimization", phase1JointOptimizationCurrent[],
   "SolveExactEquilibrium", phase1SolveExactEquilibriumCurrent[],
   "IntegratedSimulation", phase1IntegratedSimulationCurrent[],
+  "ICARUSRedesignSizing", phase1ICARUSRedesignSizingCurrent[],
   "FreeRotation", phase1FreeRotationTrajectoryCurrent[],
   "Wobble", phase1WobbleSimulationCurrent[],
   "Validate", phase1ValidateCurrent[],
   "SelfTests", phase1RunSelfTestsCurrent[],
   "DisturbanceScenarios", phase1DisturbanceScenariosCurrent[],
   "ThermalDistanceFloor", phase1DistanceThermalFloorCurrent[],
-  _, Failure["UnknownPoleTask", <|"Task" -> task, "ValidTasks" -> {"ComputeAll", "FullAssessment", "JointOptimization", "SolveExactEquilibrium", "IntegratedSimulation", "FreeRotation", "Wobble", "Validate", "SelfTests", "DisturbanceScenarios", "ThermalDistanceFloor"}|>] ]];
+  _, Failure["UnknownPoleTask", <|"Task" -> task,
+    "ValidTasks" -> Join[$Phase1IndependentlyExecutableTasks,
+      {"ComputeAll","FullAssessment","JointOptimization","SolveExactEquilibrium","IntegratedSimulation",
+       "ICARUSRedesignSizing","FreeRotation","Wobble","Validate","SelfTests","DisturbanceScenarios","ThermalDistanceFloor"}]|>]
+]];
 
 (* Pole-specific overloads for the principal stateful solvers. *)
 (* All scalar operational APIs resolve to exactly one pole context. The no-argument
@@ -3439,6 +4608,9 @@ Phase1DistanceThermalFloor[pole_String,coverage_:Automatic] := phase1WithPole[po
 
 Phase1IntegratedSimulation[durationS_:Automatic] := If[TrueQ[$Phase1ExecutingPole],phase1IntegratedSimulationCurrent[durationS],Phase1IntegratedSimulation[$Phase1SelectedPole,durationS]];
 Phase1IntegratedSimulation[pole_String,durationS_:Automatic] := phase1WithPole[pole,phase1IntegratedSimulationCurrent[durationS]];
+
+Phase1ICARUSRedesignSizing[] := If[TrueQ[$Phase1ExecutingPole],phase1ICARUSRedesignSizingCurrent[],Phase1ICARUSRedesignSizing[$Phase1SelectedPole]];
+Phase1ICARUSRedesignSizing[pole_String] := phase1WithPole[pole,phase1ICARUSRedesignSizingCurrent[]];
 
 Phase1FreeRotationTrajectory[durationS_:Automatic] := If[TrueQ[$Phase1ExecutingPole],phase1FreeRotationTrajectoryCurrent[durationS],Phase1FreeRotationTrajectory[$Phase1SelectedPole,durationS]];
 Phase1FreeRotationTrajectory[pole_String,durationS_:Automatic] := phase1WithPole[pole,phase1FreeRotationTrajectoryCurrent[durationS]];
@@ -3507,20 +4679,16 @@ Phase1ApplyOptimizationCandidate[] := Failure["SinglePoleCandidateCannotChangeSh
 
 (* Input UI: shared design/material editor excludes all per-pole operating keys. *)
 Phase1InteractivePanel[] := DynamicModule[
-  {working = Phase1GetSharedInputs[], sources = Lookup[$Phase1State, "InputNotes", <||>], result = Missing["NotRun"], keys},
+  {working = Phase1GetSharedInputs[], result = Missing["NotRun"], keys},
   keys = Keys[$Phase1State["Inputs"]];
   Column[{
     Style["PHASE 1 — SHARED DESIGN & MATERIAL INPUTS / v11.27", Bold],
-    Style["These inputs are common to both pole systems. Pole-specific operating values are entered separately in Phase1PoleOperatingInputPanel[\"Pole1\"] or [\"Pole2\"]."],
-    Pane[Dynamic@Grid[Prepend[Table[{k, InputField[Dynamic[working[k]]],
-      InputField[Dynamic[Lookup[sources, k, ""]]]}, {k, keys}],
-      {"Shared input key", "Value", "Optional source note"}],
-      Alignment -> Left], Scrollbars -> {False, True}],
+    Style["These inputs are common to both pole systems. Pole-specific operating values are entered separately."],
+    Pane[Dynamic@Grid[Prepend[Table[{k, InputField[Dynamic[working[k]]]}, {k, keys}],
+      {"Shared input key", "Value"}], Alignment -> Left], Scrollbars -> {False, True}],
     Row[{
-      Button["Apply shared inputs",
-        result = Phase1SetInputs[Association@KeyTake[working, keys],
-          Association@Select[Normal[sources], MemberQ[keys, First[#]] && StringQ[Last[#]] && StringTrim[Last[#]] =!= "" &]], Method -> "Queued"],
-      Button["Reload", working = Phase1GetSharedInputs[]; sources = Lookup[$Phase1State, "InputNotes", <||>], Method -> "Queued"]
+      Button["Apply shared inputs", result = Phase1SetInputs[Association@KeyTake[working, keys]], Method -> "Queued"],
+      Button["Reload", working = Phase1GetSharedInputs[], Method -> "Queued"]
     }],
     Dynamic[If[FailureQ[result], Style[ToString[result, InputForm], Red], ToString[Phase1InputStatus[], InputForm]]]
   }]
@@ -3530,24 +4698,19 @@ Phase1PoleOperatingInputPanel[pole_String] := Which[
   TrueQ[$Phase1ExecutingPole] && pole =!= $Phase1CurrentPole, Failure["CrossPoleUIReadBlocked", <|"ActivePole" -> $Phase1CurrentPole, "RequestedPole" -> pole|>],
   !MemberQ[$Phase1PoleIDs, pole], Failure["UnknownPoleID", <|"Pole" -> pole|>],
   True,
-  DynamicModule[{working = Lookup[$Phase1State["PoleOperatingInputs"], pole],
-    sources = Lookup[Lookup[$Phase1State, "PoleOperatingNotes", <||>], pole, <||>], result = Missing["NotRun"]},
+  DynamicModule[{working = Lookup[$Phase1State["PoleOperatingInputs"], pole], result = Missing["NotRun"]},
     Column[{
       Style["PHASE 1 — " <> pole <> " OPERATING INPUTS", Bold],
       Style["These operating values belong only to " <> pole <> ". Changes here do not alter the other pole's operating register or result cache."],
-      Grid[Prepend[Table[{k, InputField[Dynamic[working[k]]],
-        InputField[Dynamic[Lookup[sources, k, ""]]]}, {k, $Phase1PoleOperatingKeys}],
-        {"Operating input key", "Value", "Pole-specific source / measurement / assumption"}],
-        Alignment -> Left],
+      Grid[Prepend[Table[{k, InputField[Dynamic[working[k]]]}, {k, $Phase1PoleOperatingKeys}],
+        {"Operating input key", "Value"}], Alignment -> Left],
       Row[{
         Button["Apply " <> pole <> " operating inputs",
-          result = Phase1SetPoleOperatingInputs[pole, Association@KeyTake[working, $Phase1PoleOperatingKeys],
-            Association@Select[Normal[sources], StringQ[Last[#]] && StringTrim[Last[#]] =!= "" &]], Method -> "Queued"],
-        Button["Reload", working = Lookup[$Phase1State["PoleOperatingInputs"], pole];
-          sources = Lookup[Lookup[$Phase1State, "PoleOperatingNotes", <||>], pole, <||>], Method -> "Queued"],
+          result = Phase1SetPoleOperatingInputs[pole, Association@KeyTake[working, $Phase1PoleOperatingKeys]], Method -> "Queued"],
+        Button["Reload", working = Lookup[$Phase1State["PoleOperatingInputs"], pole], Method -> "Queued"],
         Button["Calculate this pole", result = Phase1ComputePole[pole], Method -> "Queued"]
       }],
-      Dynamic[If[FailureQ[result], Style[ToString[result, InputForm], Red], ToString[Phase1InputStatus[pole], InputForm]]] 
+      Dynamic[If[FailureQ[result], Style[ToString[result, InputForm], Red], ToString[Phase1InputStatus[pole], InputForm]]]
     }]
   ]
 ];
@@ -3555,125 +4718,76 @@ Phase1PoleOperatingInputPanel[pole_String] := Which[
 Phase1Reset[] := If[TrueQ[$Phase1ExecutingPole],
   Failure["ResetBlockedInsidePoleExecution", <|"ActivePole" -> $Phase1CurrentPole|>],
   Module[{shared = $Phase1DefaultInputs, op = $Phase1PoleInputDefaults},
-  $Phase1State = <|"SchemaVersion" -> $Phase1ModelVersion, "Inputs" -> shared,
-    "OptionalSourceNotes" -> $Phase1ReferenceNotes, "InputNotes" -> $Phase1UserConfirmedInputNotes,
-    "PoleOperatingInputs" -> AssociationThread[$Phase1PoleIDs, ConstantArray[op, Length[$Phase1PoleIDs]]],
-    "PoleOperatingNotes" -> AssociationThread[$Phase1PoleIDs, ConstantArray[<||>, Length[$Phase1PoleIDs]]],
-    "PoleStates" -> <||>, "LegacyInputArchive" -> <||>, "TwoPoleAggregate" -> <||>, "Derived" -> <||>, "Results" -> <||>,
-    "AuditLog" -> {}, "LastRun" -> Missing["NotRun"], "ActivePole" -> Missing["NoActivePole"],
-    "PoleArchitectureRule" -> "Two physically distinct systems, one installed at each pole. Their design and material definitions are shared; their operation is completely independent. Each pole has its own operating inputs, local environment and disturbance history, initial conditions, forces, torques, controllers, dynamics, stored state, caches, results, optimization and acceptance decisions. No operating state, force, torque, power, control command, disturbance, environment state or calculated operating output is exchanged, coupled, combined or used as an input between poles. Immutable physical constants and common mathematical/numerical algorithms are common definitions, not shared operating states. Scalar outputs may be arithmetically summed only after both calculations finish and only for reporting; aggregate results never feed either pole's operation. No combined mechanical equilibrium is imposed. Each pole uses its own local Sun-radial +x coordinate basis; no common global position/orientation is inferred."|>;
-  phase1Audit["ResetTwoIndependentPoleSystems", <|"PoleCount" -> 2, "OtherProjectDefaults" -> 0|>];
-  $Phase1State
-]];
+    $Phase1State = <|"SchemaVersion" -> $Phase1ModelVersion, "Inputs" -> shared,
+      "PoleOperatingInputs" -> AssociationThread[$Phase1PoleIDs, ConstantArray[op, Length[$Phase1PoleIDs]]],
+      "PoleStates" -> <||>, "LegacyInputArchive" -> <||>, "TwoPoleAggregate" -> <||>,
+      "Derived" -> <||>, "Results" -> <||>, "AuditLog" -> {},
+      "LastRun" -> Missing["NotRun"], "ActivePole" -> Missing["NoActivePole"],
+      "PoleArchitectureRule" -> "Two physically distinct systems, one installed at each pole. Their design and material definitions are shared; their operation is completely independent. Each pole has its own operating inputs, local environment and disturbance history, initial conditions, forces, torques, controllers, dynamics, stored state, caches, results, optimization and acceptance decisions. No operating state, force, torque, power, control command, disturbance, environment state or calculated operating output is exchanged, coupled, combined or used as an input between poles. Immutable physical constants and common mathematical/numerical algorithms are common definitions, not shared operating states. Scalar outputs may be arithmetically summed only after both calculations finish and only for reporting; aggregate results never feed either pole's operation. No combined mechanical equilibrium is imposed. Each pole uses its own local Sun-radial +x coordinate basis; no common global position/orientation is inferred."|>;
+    phase1Audit["ResetTwoIndependentPoleSystems", <|"PoleCount" -> 2, "OtherProjectDefaults" -> 0|>];
+    $Phase1State
+  ]
+];
 
 Phase1SaveState[path_String] := If[TrueQ[$Phase1ExecutingPole],
   Failure["SaveStateBlockedInsidePoleExecution", <|"ActivePole" -> $Phase1CurrentPole|>],
-  Put[$Phase1State, path]];
+  Put[$Phase1State, path]
+];
 Phase1LoadState[path_String] := If[TrueQ[$Phase1ExecutingPole],
   Failure["LoadStateBlockedInsidePoleExecution", <|"ActivePole" -> $Phase1CurrentPole|>],
-  Module[{loaded, schema, shared, sharedSources, opInputs, opSources, legacyArchive,
-    legacySharedValues, legacySharedSources, legacyPoleArchive, preservedReferenceKeys, legacyReferenceValues, legacyReferenceSources,
-    unknownShared, unknownOps, migrated = False,
-    activeSharedSources, activePoleSources, invalidPoleMaps},
+  Module[{loaded, schema, shared, opInputs, legacyArchive, legacySharedValues, legacyPoleArchive,
+    migrated = False, unknownShared, unknownOps},
     loaded = Quiet@Check[Get[path], $Failed];
-    If[!AssociationQ[loaded],
-      Return[Failure["InvalidIndependentPoleStateFile", <|"Path" -> path|>]]];
+    If[!AssociationQ[loaded], Return[Failure["InvalidIndependentPoleStateFile", <|"Path" -> path|>]]];
+    loaded=KeyTake[loaded,{"SchemaVersion","Inputs","PoleOperatingInputs","PoleStates","LegacyInputArchive",
+      "TwoPoleAggregate","Derived","Results","AuditLog","LastRun","ActivePole","PoleArchitectureRule"}];
     schema = Lookup[loaded, "SchemaVersion", ""];
     If[!MemberQ[{"11.11", "11.12", "11.13", "11.14", "11.15", "11.16", "11.17", "11.18", "11.19", "11.20", "11.21", "11.22", "11.23", "11.24", "11.25", "11.26", $Phase1ModelVersion}, schema],
       Return[Failure["InvalidOrUnsupportedIndependentPoleStateFile",
         <|"Path" -> path, "SupportedSchemas" -> {"11.11", "11.12", "11.13", "11.14", "11.15", "11.16", "11.17", "11.18", "11.19", "11.20", "11.21", "11.22", "11.23", "11.24", "11.25", "11.26", "11.27"}|>]]];
     shared = Lookup[loaded, "Inputs", <||>];
-    If[!AssociationQ[shared],
-      Return[Failure["InvalidSharedInputRegisterInSavedState", <|"Path" -> path|>]]];
-    sharedSources = Lookup[loaded, "InputNotes", <||>];
-    If[!AssociationQ[sharedSources], sharedSources = <||>];
+    If[!AssociationQ[shared], Return[Failure["InvalidSharedInputRegisterInSavedState", <|"Path" -> path|>]]];
     opInputs = Lookup[loaded, "PoleOperatingInputs", <||>];
-    opSources = Lookup[loaded, "PoleOperatingNotes", <||>];
-    If[!AssociationQ[opInputs],
-      Return[Failure["InvalidPoleOperatingInputRegistersInSavedState", <|"Path" -> path|>]]];
-    If[!AssociationQ[opSources], opSources = <||>];
-    invalidPoleMaps = Select[$Phase1PoleIDs,
-      !AssociationQ[Lookup[opInputs, #, <||>]] || !AssociationQ[Lookup[opSources, #, <||>]] &];
-    If[invalidPoleMaps =!= {},
-      Return[Failure["InvalidPoleOperatingInputOrProvenanceMap",
-        <|"Path" -> path, "Poles" -> invalidPoleMaps|>]]];
+    If[!AssociationQ[opInputs], opInputs = <||>];
     legacyArchive = Lookup[loaded, "LegacyInputArchive", <||>];
     If[!AssociationQ[legacyArchive], legacyArchive = <||>];
-
     If[MemberQ[{"11.11", "11.12", "11.13", "11.14", "11.15", "11.16", "11.17", "11.18", "11.19", "11.20", "11.21", "11.22", "11.23", "11.24", "11.25", "11.26"}, schema],
       migrated = True;
-      (* Saved states created before v11.27 predate the current blank-by-default input policy.
-         They may contain old project values that were generated under previous assumptions or entered before the current input policy. Archive their complete active input and optional source-note maps,
-         then reset all project-specific values and all per-pole operating values to Missing.
-         No prior project number is allowed back into an active calculation merely because
-         it was present in a saved state. *)
       legacySharedValues = KeyDrop[shared, $Phase1ReferenceAndSoftwareDefaultKeys];
-      legacySharedSources = KeyTake[sharedSources, Keys[legacySharedValues]];
-      legacyPoleArchive = AssociationMap[Function[id,
-        <|"Values" -> Lookup[opInputs, id, <||>],
-          "OptionalSourceNotes" -> Lookup[opSources, id, <||>]|>], $Phase1PoleIDs];
-      preservedReferenceKeys = Intersection[Keys[shared], $Phase1ReferenceAndSoftwareDefaultKeys,
-        Keys[$Phase1DefaultInputs]];
-      legacyReferenceValues = KeyTake[shared, preservedReferenceKeys];
-      legacyReferenceSources = KeyTake[sharedSources, preservedReferenceKeys];
-      (* Even canonical-reference overrides from an older save are archived, not trusted.
-         The current source restores only its published physical constants, standardized
-         PV test conditions, mathematical domain and Mathematica execution conventions. *)
-      shared = $Phase1DefaultInputs;
-      activeSharedSources = $Phase1UserConfirmedInputNotes;
-      opInputs = AssociationThread[$Phase1PoleIDs, ConstantArray[$Phase1PoleInputDefaults, Length[$Phase1PoleIDs]]];
-      opSources = AssociationThread[$Phase1PoleIDs, ConstantArray[<||>, Length[$Phase1PoleIDs]]];
+      legacyPoleArchive = AssociationMap[Function[id, Lookup[opInputs, id, <||>]], $Phase1PoleIDs];
       legacyArchive = Join[legacyArchive, <|
         "MostRecentArchivedSchema" -> schema,
-        "MigrationPolicy" -> "All pre-v11.27 project-specific shared inputs and both poles' operating inputs were archived, then reset to Missing[UserInputRequired]. None are active in v11.27 until the owner enters the required values.",
-        "SharedProjectInputs" -> <|"Values" -> legacySharedValues,
-          "OptionalSourceNotes" -> legacySharedSources|>,
+        "MigrationPolicy" -> "Pre-v11.27 project-specific inputs were archived, then reset to Missing[UserInputRequired]. None are reactivated in the current model.",
+        "SharedProjectInputs" -> legacySharedValues,
         "PerPoleOperatingInputs" -> legacyPoleArchive,
-        "LegacyReferenceAndSoftwareValues" -> <|"Values" -> legacyReferenceValues,
-          "OptionalSourceNotes" -> legacyReferenceSources,
-          "Reactivated" -> False,
-          "Policy" -> "All saved legacy reference/software overrides are archived and inactive; the current source's canonical published constants, PV reference conditions, and software definitions are used instead."|>,
         "ArchivedAtLoadPath" -> path|>];
-      sharedSources = activeSharedSources;
-      loaded = Join[loaded, <|
-        "SchemaMigration" -> <|"From" -> schema, "To" -> $Phase1ModelVersion,
-          "LegacyProjectInputsArchivedNotActivated" -> True,
-          "AllLegacySharedProjectInputsResetToMissing" -> True,
-          "AllLegacyPerPoleOperatingInputsResetToMissing" -> True,
-          "OnlyCanonicalReferenceAndSoftwareDefaultsPreserved" -> True,
-          "LegacyReferenceOverridesArchivedNotActivated" -> True,
-          "PoleCountRetained" -> 2,
-          "AllCalculationCachesInvalidated" -> True|>|>];
+      shared = $Phase1DefaultInputs;
+      opInputs = AssociationThread[$Phase1PoleIDs, ConstantArray[$Phase1PoleInputDefaults, Length[$Phase1PoleIDs]]]
     ];
-
+    shared = KeyDrop[shared, $Phase1PoleOperatingKeys];
+    shared=phase1NormalizeSavedSharedInputs[shared];
+    If[FailureQ[shared],Return[shared]];
     unknownShared = Complement[Keys[shared], Keys[$Phase1DefaultInputs]];
-    If[unknownShared =!= {},
-      Return[Failure["UnknownSharedInputKeys", <|"Keys" -> unknownShared|>]]];
+    If[unknownShared =!= {}, Return[Failure["UnknownSharedInputKeys", <|"Keys" -> unknownShared|>]]];
     unknownOps = Complement[Flatten[Keys /@ Values[opInputs]], $Phase1PoleOperatingKeys];
-    If[unknownOps =!= {},
-      Return[Failure["UnknownPoleOperatingInputKeys", <|"Keys" -> unknownOps|>]]];
+    If[unknownOps =!= {}, Return[Failure["UnknownPoleOperatingInputKeys", <|"Keys" -> unknownOps|>]]];
+    If[!migrated && !And@@(AssociationQ[Lookup[opInputs, #, <||>]] & /@ $Phase1PoleIDs),
+      Return[Failure["InvalidPoleOperatingInputRegistersInSavedState", <|"Path" -> path|>]]];
+    If[!migrated && !And@@(KeyExistsQ[opInputs, #] & /@ $Phase1PoleIDs),
+      Return[Failure["MissingPoleOperatingInputRegisterInSavedState", <|"Path" -> path|>]]];
     If[Lookup[shared, "PoleCount", Missing[]] =!= 2,
       Return[Failure["InvalidPoleCountInSavedState", <|"RequiredPoleCount" -> 2|>]]];
-
-    activeSharedSources = Join[
-      KeyTake[sharedSources, Intersection[Keys[sharedSources], Keys[shared]]],
-      $Phase1UserConfirmedInputNotes];
-    activePoleSources = AssociationMap[Function[id,
-      KeyTake[Lookup[opSources, id, <||>], $Phase1PoleOperatingKeys]], $Phase1PoleIDs];
     $Phase1State = Join[loaded, <|
       "SchemaVersion" -> $Phase1ModelVersion,
       "Inputs" -> Join[$Phase1DefaultInputs, shared],
-      "InputNotes" -> activeSharedSources,
       "PoleOperatingInputs" -> AssociationMap[Function[id,
-        Join[$Phase1PoleInputDefaults, Lookup[opInputs, id, <||>]]], $Phase1PoleIDs],
-      "PoleOperatingNotes" -> activePoleSources,
+        Join[$Phase1PoleInputDefaults, Lookup[opInputs, id, $Phase1PoleInputDefaults]]], $Phase1PoleIDs],
       "LegacyInputArchive" -> legacyArchive,
       "PoleStates" -> <||>, "TwoPoleAggregate" -> <||>,
       "Derived" -> <||>, "Results" -> <||>,
       "LastRun" -> Missing["LoadedStateRequiresPerPoleRecalculation"]|>];
     phase1Audit["IndependentPoleStateLoaded", <|"Path" -> path,
-      "AllPoleCachesInvalidated" -> True,
-      "MigratedFromLegacySchema" -> migrated,
+      "AllPoleCachesInvalidated" -> True, "MigratedFromLegacySchema" -> migrated,
       "LegacyProjectInputsArchivedNotActivated" -> migrated,
       "NewUserInputsRequiredAfterMigration" -> If[migrated,
         Join[Keys[Select[$Phase1DefaultInputs, MissingQ]],
@@ -3691,3 +4805,25 @@ Phase1GetLegacyInputArchive[] := Lookup[$Phase1State, "LegacyInputArchive", <||>
 
 End[];
 EndPackage[];
+
+(* ========================================================================
+   PYTHON SCREENING RECORD — 2026-11-21 — NOT AN ACTIVE MODEL DEFAULT
+   The independent Python bounded search report is M08_Python_Mutable_Optimization_Report.txt.
+   Best candidate found in that reduced-order screen (per sheet): r=0.9378 AU;
+   PV coverage=0.010024109586658544; aluminium minimum baseline=1.0*10^-7 m;
+   PV cell area=3.0*10^-5 m^2; 1x2 cells/node (two cells per node);
+   bus target=4925 V; collector sectors=8192 nodes with two parallel strings/sector;
+   PV temperature=342.1461 K (1 K guard below the 343.15 K screen);
+   solar-radiation-only force ratio Frad/Fgrav=1.2000068; future mass capacity
+   about 1.5136*10^14 kg per sheet; delivered pre-global-collection screening
+   power about 3.2303*10^17 W/sheet.
+   Backside film was NOT selected: the 0.1 um aluminum baseline met the simple
+   local span-rigidity screen by itself, so adding film would only increase mass.
+   This is a provisional Python candidate only. It has NOT been promoted to the active
+   input register and is NOT Mathematica-runtime verified or engineering qualified.
+   The source's electrical-network and substrate-treatment helper definitions, new
+   aluminium/backside-film input schema and future-mass keys remain incomplete; legacy
+   Dyneema/DCF references remain in the active defaults. The modeled global collector
+   network between sectors and final power-conditioning stations is also incomplete.
+   Do not treat this record as completion of the full all-mutable-variable optimization.
+   ======================================================================== *)
