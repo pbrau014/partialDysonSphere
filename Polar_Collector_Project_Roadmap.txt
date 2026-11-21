@@ -1,3 +1,71 @@
+
+Governing Context & Terminology Rules
+
+Operate strictly under POLAR COLLECTOR PROJECT — GOVERNING ROADMAP (Version 1.1, dated 2026-11-21):
+• Project Structure: Maintain the exact six highest-level project phases (Phase 0 through Phase 5). Do NOT create, rename, split, merge, or introduce other project-level phases, and NEVER use the word "phase" for any lower-level work, subsystem, task group, milestone, or subdivision (use terms like stage, tier, or step instead).
+• Independent Two-Sheet Topology: Preserve the immutable system architecture of two (2) independent collector sheets (Pole 1 and Pole 2) with strict pole-state isolation.
+• Step Status: Steps 1 and 2 are complete; Step 3 is administratively closed with all unfinished technical work transferred into Step 4.
+
+Part 1: Exhaustive Optimization & Source Modernization
+
+
+Objective
+
+Exhaustively analyze all assumptions, approximations, default screening bounds, and known baseline values across the entire Phase 1 source (including carried-over Step 3 tasks and Steps 4 through 10) to maximize total combined and per-pole electrical power output from Pole 1 and Pole 2.
+Because inherited values originated from an earlier context—and upcoming redesigns will match our exact operational requirements—tighten tolerances and optimize every mutable parameter in the system while shifting the current natural force balance toward a controlled outward bias where solar radiation pressure force exceeds gravitational force. Design Context: Additional structural and payload mass will be integrated in a later project phase (such as Phase 2 or Phase 3 downstream hardware); this current outward force surplus serves as a deliberate future added mass margin so that adding weight later settles Pole 1 and Pole 2 into true equilibrium.
+
+Source Cleanup & Modernization Rule
+
+• Purge Outdated References: Audit the entire source and remove all references to Dyneema as well as any other old, outdated, or superseded design concepts, variables, methods, or values.
+• Contextual Replacement: Replace every removed reference with the appropriate updated text, materials, and formulas matching the surrounding context, the Governing Roadmap (v1.1), and the ultrathin aluminum sheet architecture defined below.
+
+Structural & Electrical Architecture Rules (Aligned with Steps 5 and 7)
+
+Replace flat/uniform structural mass approximations with a coupled, bottom-up mass and structural model:
+1. Hierarchical PV Wiring & Connector Mass (Step 5 interfaces and Step 7 sizing):
+	• Model electrical interconnects at two distinct tiers: intra-node connections (for example, roughly 50 PV cells soldered directly together per node using low-mass tabs or solder) and inter-node bus wiring (wires connecting separate nodes, sized by exact length and American Wire Gauge required to carry cumulative electrical load without excessive resistive heating power loss or thermal failure).
+	• Calculate exact weight, geometry, and routing density of both tiers across Pole 1 and Pole 2 independently.
+2. Coupled Aluminum Sheet Thickness & Wire Spacing (Step 5):
+	• Link the minimum viable thickness of the ultrathin aluminum sheet directly to the physical spacing and span between structural electrical wiring runs (since the wiring grid acts as load-bearing ribs supporting the foil). Do not add aluminum thickness without a demonstrated structural need.
+3. Conditional Backside Thin-Film Reinforcement (Step 5):
+	• Do not thicken the aluminum sheet beyond its minimum baseline to gain extra structural strength. Instead, evaluate adding a thin-film backing layer strictly on the anti-sunward (back) side of the aluminum sheet—if and only if the composite (ultrathin aluminum plus backside thin film) achieves a higher strength-to-weight ratio and structural rigidity than thickening the aluminum alone.
+
+Constraints & Degrees of Freedom
+
+• Primary Goal: Maximize total solar sheet power output across Pole 1 and Pole 2.
+• Hard Constraint 1 (Mass-Growth Force Margin): Shift the current equilibrium away from strict zero-net-force so that solar radiation pressure force is greater than current gravitational pull, explicitly quantifying the maximum future added mass each pole can absorb before solar radiation pressure force equals gravitational force.
+• Hard Constraint 2 (Immutable System Architecture & Physics): Keep strictly fixed and unchangeable:
+	• Governing Roadmap Structure: The 6 project-level phases and the independent two-sheet topology (Pole 1 and Pole 2 operating independently with full pole-state isolation).
+	• Physics & Material Constants: Fundamental constants of nature (the gravitational constant, the speed of light, solar luminosity, and the Stefan-Boltzmann constant) and intrinsic, unchangeable physical properties of chosen base materials.
+• Allowed Variables (Full Degrees of Freedom): Aside from the immutable constraints above, every other variable, parameter, assumption, geometric dimension, orbital and solar distance, PV cell area, node cell count, wire gauge and spacing, substrate and film thickness, thermal ceiling, screening bound, and safety reserve in the entire source is unlocked and eligible for modification.
+
+Mathematica Kernel Execution Instructions
+
+1. Dependency Mapping & Mutability Audit: Audit the entire source across Pole 1 and Pole 2 to classify every parameter into Immutable versus Mutable, mapping all upstream and downstream dependencies across Steps 4 through 10.
+2. Bidirectional & Recursive Perturbation:
+	• Test each mutable tolerance and bound using progressive tightening (for example, halving by 50 percent, then halving again: from 10 percent down to 5 percent, and then down to 2.5 percent) as well as a slight relaxation (for example, from 10 percent up to 12.5 percent) to confirm directional sensitivity.
+	• Recursively co-optimize all mutable variables simultaneously (maintaining pole-state isolation while evaluating Pole 1, Pole 2, and combined totals) to maximize net power output while preserving a practical outward force surplus for future added mass.
+3. End-to-End Tracing: Trace all ripple effects upstream and downstream across Steps 4 through 10—specifically how changing Sun distance, curved-sheet geometry and local surface normals, PV area, and node size alters electrical current, wire gauge, wire spacing, aluminum and backside-film thickness, areal mass density, thermal equilibrium, optical reflectivity and absorption, and ICARUS four-station force, torque, and attitude dynamics.
+4. Autonomous Decision Resolution (No Questions): Do not generate a questionnaire or ask me to choose between options. Whenever you encounter a trade-off, ambiguity, or multiple viable paths (such as selecting a target future added mass margin, choosing a backside thin-film material, or setting thermal limits), autonomously select the single most logical, well-balanced choice based on current operational context, existing source data, and the engineering goals in this prompt.
+
+Part 2: Mathematica Code Rewrite & Exhaustive Documentation Rules
+
+Rewrite the updated Mathematica source code with heavy, comprehensive, and deeply detailed inline and block comments ((* ... *)) adhering strictly to these seven rules:
+1. Total Project Synthesis & Narrative Breakdown: Treat these comments as more than just a technical manual—use them to thoroughly narrate the entire Polar Collector Project. Include a complete structural overview, overlay, and breakdown of all project details, parts, and the six governing phases (Phase 0 through Phase 5, plus Phase 1 Steps 1 through 10) directly inside the code blocks.
+2. Explicit "What, Why, and How" with Active Chat Examples: For every section, explicitly detail what the code executes, why it is necessary for the project's objectives, and how it functions within the overall architecture. Pull specific examples, parameters, and context from all active chats (including the optimized parameters derived in Part 1) and embed those explanations directly alongside the exact lines of source code they govern.
+3. Domain Focus (Physics, Astrophysics & Engineering Only): Use the comments to thoroughly explain the underlying physics, astrophysics, and engineering design concepts driving the system (such as solar radiation pressure momentum transfer, gravitational equilibrium, orbital mechanics, thermal radiative balance, structural foil mechanics, and high-current electrical routing). Do not explain mathematical concepts beyond a brief mention of what formula or operation is being called.
+4. Models & Interactive Controls: Explicitly highlight and explain all models used in the project and detail step-by-step how they operate. Document all interactive controls (such as Manipulate sliders, toggles, and dynamic inputs), explaining their physical and engineering significance and placing those comments directly beside their corresponding control definitions in the source code.
+5. Strict Pruning of Outdated Context: Search across all active chats to gather context, but strictly exclude any old, outdated, superseded, replaced, or removed ideas, variables, methods, or logic (such as Dyneema or pre-optimization legacy approximations). Document only the final, active state of the code—do not mention deprecated approaches or what used to be there.
+6. Completeness Audit: Before finalizing your response, scan the entire script for any substantial or sufficient blocks of code that lack thorough commentary. Search across all active chats for the relevant project context to fill in those gaps so no major logic goes unexplained.
+7. Mathematica Syntax Integrity: Use standard (* ... *) comment syntax cleanly so the entire output remains 100% copy-pasteable and immediately executable in Wolfram Mathematica without syntax errors.
+
+Sole Deliverable & Next Action
+
+• Update Remaining Steps, Rewrite & Comment Code, and Execute Step 4: Apply all tightened parameters, purified contextual text, and autonomously selected optimal values directly to update Steps 4 through 10 of Phase 1, output the fully rewritten and heavily documented Mathematica source code meeting all seven rules above, and immediately proceed with executing Step 4 (including all carried-forward Step 3 ICARUS sizing and dynamic verification tasks and Step 4B collector geometry and distributed physical-loading work for Pole 1 and Pole 2).
+
+Reference: Governing Roadmap (v1.1)
+
+
 POLAR COLLECTOR PROJECT — GOVERNING ROADMAP
 Version: 1.1
 Last updated: 2026-11-21
